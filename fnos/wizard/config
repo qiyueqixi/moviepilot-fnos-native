@@ -1,0 +1,17 @@
+[
+  {
+    "stepTitle": "服务设置",
+    "items": [
+      { "type": "tips", "helpText": "媒体库和下载目录由本页的授权目录设置管理。" },
+      {
+        "type": "text",
+        "field": "wizard_proxy",
+        "label": "HTTP/HTTPS 代理（可选）",
+        "placeholder": "http://192.168.1.4:7899",
+        "rules": [
+          { "pattern": "^(http|https)://.+$", "message": "代理地址必须以 http:// 或 https:// 开头" }
+        ]
+      }
+    ]
+  }
+]

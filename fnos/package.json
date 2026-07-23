@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-http-proxy": "^2.0.0"
+  }
+}

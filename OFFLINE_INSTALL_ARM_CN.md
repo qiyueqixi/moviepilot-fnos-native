@@ -1,0 +1,51 @@
+# MoviePilot ARM64 离线安装说明
+
+本发行版适用于 ARM64 飞牛 fnOS，使用系统内置 Python 3.11 运行，不使用 Docker。
+
+## 文件说明
+
+- `moviepilot_2.14.6-15_arm.fpk`：完整离线安装包，已经内置运行环境，推荐使用。
+- `moviepilot_2.14.6-16_arm_installer.fpk`：拆分版安装包，不含 Python 运行环境。
+- `moviepilot-runtime-arm-python311.tgz`：拆分版所需的 ARM64 运行时数据包。
+
+## 完整包安装
+
+1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-15_arm.fpk`。
+2. 按安装向导完成安装，然后启动 MoviePilot。
+3. 从飞牛桌面打开 MoviePilot。应用已启用免登录模式，无需输入 MoviePilot 登录密码。
+
+完整包安装和首次启动不会下载 Python 依赖。安装向导中的代理只供 MoviePilot 后续联网使用。
+
+## 拆分包安装
+
+1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-16_arm_installer.fpk`。
+2. 安装完成后先不要启动 MoviePilot。
+3. 打开 fnOS 的“应用文件”，进入 `moviepilot/runtime` 目录。
+4. 上传 `moviepilot-runtime-arm-python311.tgz`，不要修改文件名。
+5. 回到应用中心启动 MoviePilot。首次启动会自动解压运行环境。
+
+## 应用文件
+
+- `moviepilot/config`：配置、数据库和令牌等重要数据。
+- `moviepilot/logs`：应用日志，排错时查看 `moviepilot.log`。
+- `moviepilot/exports`：应用导出的文件。
+- `moviepilot/runtime`：拆分版运行时数据包。
+
+卸载时选择“保留数据”会保留以上目录；选择“删除全部数据”会删除 MoviePilot 对应的全部应用目录。
+
+## 自定义启动背景
+
+将以下任意一个文件上传到 `moviepilot/config`，重新打开应用即可生效：
+
+- `loading-background.webp`
+- `loading-background.jpg`
+- `loading-background.jpeg`
+- `loading-background.png`
+
+建议使用 1920 x 1080 或更高分辨率的横向图片。
+
+## 访问和权限
+
+应用通过 fnOS 统一网关 `/app/moviepilot/` 访问。内部 API 只监听 `127.0.0.1:3001`，不会向局域网开放独立端口。
+
+MoviePilot 文件管理器只显示安装或应用设置中明确授权的目录。未授权时不会显示 NAS 系统目录。

@@ -1,0 +1,9 @@
+.tmp/
+dist/
+__pycache__/
+*.pyc
+app.tgz
+fnos/runtime/*.tgz
+fnos/resources/*.so
+fnos/resources/node-linux-arm64
+

@@ -1,0 +1,18 @@
+{
+    "data-share": {
+        "shares": [
+            {
+                "name": "moviepilot/config"
+            },
+            {
+                "name": "moviepilot/logs"
+            },
+            {
+                "name": "moviepilot/exports"
+            },
+            {
+                "name": "moviepilot/runtime"
+            }
+        ]
+    }
+}

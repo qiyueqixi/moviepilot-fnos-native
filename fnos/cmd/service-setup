@@ -1,0 +1,122 @@
+#!/bin/bash
+set -e
+
+PROXY_FILE="${TRIM_PKGVAR}/.proxy"
+VENV="${TRIM_PKGVAR}/venv"
+
+apply_proxy() {
+    local proxy="$1"
+    [ -n "$proxy" ] || return 0
+    case "$proxy" in
+        http://*|https://*) ;;
+        *) install_log "代理地址必须以 http:// 或 https:// 开头"; return 1 ;;
+    esac
+    export HTTP_PROXY="$proxy" HTTPS_PROXY="$proxy" ALL_PROXY="$proxy"
+    export http_proxy="$proxy" https_proxy="$proxy" all_proxy="$proxy"
+}
+
+save_proxy() {
+    local proxy="$1"
+    [ -n "$proxy" ] || return 0
+    apply_proxy "$proxy"
+    printf '%s\n' "$proxy" > "$PROXY_FILE"
+    chmod 600 "$PROXY_FILE"
+}
+
+service_postinst() {
+    [ -z "${wizard_proxy:-}" ] || save_proxy "$wizard_proxy"
+    [ ! -f "$PROXY_FILE" ] || apply_proxy "$(cat "$PROXY_FILE")"
+    local bundled_runtime="${TRIM_APPDEST}/runtime/venv.tgz"
+    if [ -f "$bundled_runtime" ]; then
+        rm -rf "$VENV"
+        tar -xzf "$bundled_runtime" -C "${TRIM_PKGVAR}"
+        chmod -R u+rwX,go+rX "$VENV" 2>/dev/null || true
+        [ -x "${VENV}/bin/python" ] || { install_log "离线运行时解压失败"; return 1; }
+    fi
+    mkdir -p "${TRIM_PKGVAR}/core"
+    chown -R "${TRIM_UID}:${TRIM_GID}" "${TRIM_PKGVAR}" 2>/dev/null || true
+    chown -R "${TRIM_UID}:${TRIM_GID}" "${TRIM_APPDEST}" 2>/dev/null || true
+}
+
+service_postconfig() {
+    [ -z "${wizard_proxy:-}" ] || save_proxy "$wizard_proxy"
+}
+
+remove_shared_data() {
+    local paths="${TRIM_DATA_SHARE_PATHS:-}"
+    local path=""
+    local parent=""
+
+    while [ -n "$paths" ]; do
+        case "$paths" in
+            *:*)
+                path="${paths%%:*}"
+                paths="${paths#*:}"
+                ;;
+            *)
+                path="$paths"
+                paths=""
+                ;;
+        esac
+
+        # Delete only data-share paths declared by this package.
+        case "$path" in
+            */moviepilot/config|*/moviepilot/logs|*/moviepilot/exports|*/moviepilot/runtime)
+                [ -d "$path" ] && rm -rf -- "$path"
+                parent="${path%/*}"
+                ;;
+            *)
+                install_log "Skip unexpected shared path: $path"
+                ;;
+        esac
+    done
+
+    # Remove the application root only when nothing else remains in it.
+    [ -z "$parent" ] || rmdir "$parent" 2>/dev/null || true
+}
+
+remove_private_data_roots() {
+    local app_name="${TRIM_APPNAME:-}"
+    local volume_root=""
+    local target=""
+
+    [ "$app_name" = "moviepilot" ] || { install_log "Skip private data cleanup for unexpected app: $app_name"; return 1; }
+    case "${TRIM_PKGVAR:-}" in
+        */@appdata/moviepilot) volume_root="${TRIM_PKGVAR%/@appdata/moviepilot}" ;;
+        *) install_log "Skip private data cleanup for unexpected TRIM_PKGVAR: ${TRIM_PKGVAR:-}"; return 1 ;;
+    esac
+
+    for target in \
+        "${volume_root}/@appdata/moviepilot" \
+        "${volume_root}/@apphome/moviepilot" \
+        "${volume_root}/@appconf/moviepilot" \
+        "${volume_root}/@appmeta/moviepilot" \
+        "${volume_root}/@apptemp/moviepilot" \
+        "${volume_root}/@appshare/moviepilot"; do
+        case "$target" in
+            "${volume_root}"/@appdata/moviepilot|\
+            "${volume_root}"/@apphome/moviepilot|\
+            "${volume_root}"/@appconf/moviepilot|\
+            "${volume_root}"/@appmeta/moviepilot|\
+            "${volume_root}"/@apptemp/moviepilot|\
+            "${volume_root}"/@appshare/moviepilot)
+                [ ! -e "$target" ] || rm -rf -- "$target"
+                ;;
+            *)
+                install_log "Skip unexpected private data path: $target"
+                return 1
+                ;;
+        esac
+    done
+}
+
+service_postuninst() {
+    [ "${wizard_delete_data:-false}" = "true" ] || return 0
+    remove_shared_data
+    remove_private_data_roots
+}
+
+service_postupgrade() {
+    mkdir -p "${TRIM_PKGVAR}/core"
+    service_postinst
+}
