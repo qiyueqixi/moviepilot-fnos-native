@@ -16,6 +16,7 @@
 
 - x86 用户参阅 [OFFLINE_INSTALL_CN.md](OFFLINE_INSTALL_CN.md)。
 - ARM64 用户参阅 [OFFLINE_INSTALL_ARM_CN.md](OFFLINE_INSTALL_ARM_CN.md)。
+- 从 Docker 版迁移数据参阅 [MIGRATION_DOCKER_TO_FNOS_CN.md](MIGRATION_DOCKER_TO_FNOS_CN.md)。
 
 推荐直接安装完整 FPK。拆分版需要把对应架构的 Python 3.11 运行时数据包上传到“应用文件”中的 `moviepilot/runtime` 目录后再启动。
 
