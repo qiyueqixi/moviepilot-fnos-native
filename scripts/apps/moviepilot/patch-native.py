@@ -9,6 +9,13 @@ needle = "    if jwt_token:\n"
 replacement = "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n        return schemas.TokenPayload(sub=0, username=settings.SUPERUSER, super_user=True, level=99, purpose=\"authentication\")\n    if jwt_token:\n"
 if replacement not in text:
     text = text.replace(needle, replacement, 1)
+
+needle = "    # 验证并解析资源访问令牌\n    return __verify_token(token=resource_token, purpose=\"resource\")"
+replacement = "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n        return __create_superuser_token_payload()\n    # 验证并解析资源访问令牌\n    return __verify_token(token=resource_token, purpose=\"resource\")"
+if replacement not in text:
+    if needle not in text:
+        raise RuntimeError("MoviePilot resource-token patch target was not found")
+    text = text.replace(needle, replacement, 1)
 security.write_text(text, encoding="utf-8")
 
 user_oper = root / "app/db/user_oper.py"

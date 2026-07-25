@@ -49,6 +49,26 @@ def read_manifest() -> dict[str, str]:
     return values
 
 
+def patch_resource_auth(data: bytes) -> bytes:
+    """Allow cookie-only resources when the native package runs without auth."""
+    text = data.decode("utf-8").replace("\r\r\n", "\n").replace("\r\n", "\n")
+    needle = (
+        "    # 验证并解析资源访问令牌\n"
+        "    return __verify_token(token=resource_token, purpose=\"resource\")"
+    )
+    replacement = (
+        "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n"
+        "        return __create_superuser_token_payload()\n"
+        "    # 验证并解析资源访问令牌\n"
+        "    return __verify_token(token=resource_token, purpose=\"resource\")"
+    )
+    if replacement not in text:
+        if needle not in text:
+            raise SystemExit("MoviePilot resource-token patch target was not found")
+        text = text.replace(needle, replacement, 1)
+    return text.encode("utf-8")
+
+
 def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
     """Normalize permissions and place desktop UI and required resources in app.tgz."""
     output = Path(tempfile.mkstemp(suffix=".tgz")[1])
@@ -78,7 +98,11 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
                 continue
             normalize(member)
             if member.isfile():
-                target.addfile(member, archive.extractfile(member))
+                data = archive.extractfile(member).read()
+                if member.name == "app/core/security.py":
+                    data = patch_resource_auth(data)
+                member.size = len(data)
+                target.addfile(member, io.BytesIO(data))
             else:
                 target.addfile(member)
         target.add(FNOS / "ui", arcname="ui", recursive=True, filter=normalize)

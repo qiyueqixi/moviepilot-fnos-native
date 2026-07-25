@@ -145,6 +145,7 @@ moviepilot/runtime
 免登录不是删除旧数据库中的账户或密码，而是由环境变量 `MOVIEPILOT_NO_AUTH=1` 启用适配逻辑：
 
 - `scripts/apps/moviepilot/patch-native.py` 修改后端令牌解析、当前用户和登录接口。
+- 资源 Cookie 鉴权在免登录模式下返回内置管理员身份，供实时日志 SSE、图片缓存和下载等浏览器资源请求使用。
 - `fnos/resources/no-auth.js` 向前端写入内置管理员状态。
 - 后端返回 ID 为 `0`、等级为 `99` 的 `admin` 管理员。
 
@@ -231,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-19 --platform x86
-python build-fpk.py --version 2.14.6-19 --platform arm
+python build-fpk.py --version 2.14.6-21 --platform x86
+python build-fpk.py --version 2.14.6-21 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-20 --platform x86 --without-runtime --output-name moviepilot_2.14.6-20_x86_installer.fpk
-python build-fpk.py --version 2.14.6-20 --platform arm --without-runtime --output-name moviepilot_2.14.6-20_arm_installer.fpk
+python build-fpk.py --version 2.14.6-22 --platform x86 --without-runtime --output-name moviepilot_2.14.6-22_x86_installer.fpk
+python build-fpk.py --version 2.14.6-22 --platform arm --without-runtime --output-name moviepilot_2.14.6-22_arm_installer.fpk
 ```
 
 产物写入 `dist/`。`build-fpk.py` 会：
@@ -269,7 +270,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-19_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-21_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
