@@ -81,7 +81,7 @@ Python 后端只监听 `127.0.0.1:3001`。Node 网关监听 `${TRIM_APPDEST}/mov
 
 Node 网关还负责：
 
-- 后端就绪前显示启动检查页。
+- 后端就绪前显示从本次启动日志提取的初始化进度；检测到异常或后台进程退出时显示脱敏、截断后的错误摘要。
 - 为统一网关路径注入正确的 `<base>`。
 - 代理 `/api` 和 `/cookiecloud` 到 Python 后端。
 - 在 fnOS iframe 中使用紧凑 UI。
@@ -232,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-21 --platform x86
-python build-fpk.py --version 2.14.6-21 --platform arm
+python build-fpk.py --version 2.14.6-25 --platform x86
+python build-fpk.py --version 2.14.6-25 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-22 --platform x86 --without-runtime --output-name moviepilot_2.14.6-22_x86_installer.fpk
-python build-fpk.py --version 2.14.6-22 --platform arm --without-runtime --output-name moviepilot_2.14.6-22_arm_installer.fpk
+python build-fpk.py --version 2.14.6-26 --platform x86 --without-runtime --output-name moviepilot_2.14.6-26_x86_installer.fpk
+python build-fpk.py --version 2.14.6-26 --platform arm --without-runtime --output-name moviepilot_2.14.6-26_arm_installer.fpk
 ```
 
 产物写入 `dist/`。`build-fpk.py` 会：
@@ -270,7 +270,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-21_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-25_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。

@@ -31,7 +31,9 @@ esac
 VENV="${VAR_DIR}/venv"
 PID_FILE="${VAR_DIR}/moviepilot.pid"
 FRONT_PID_FILE="${VAR_DIR}/moviepilot-frontend.pid"
+LOG_MIRROR_PID_FILE="${VAR_DIR}/moviepilot-log-mirror.pid"
 LOG_FILE="${LOG_DIR}/moviepilot.log"
+SYSTEM_LOG_FILE="/var/log/apps/${TRIM_APPNAME:-moviepilot}.log"
 ACCESS_PATHS_FILE="${VAR_DIR}/.accessible_paths"
 SOCKET_PATH="${APP_DIR}/moviepilot.sock"
 GATEWAY_PREFIX="/app/moviepilot"
@@ -42,6 +44,12 @@ pid_running() {
 }
 is_running() {
     pid_running "$PID_FILE" && pid_running "$FRONT_PID_FILE" && [ -S "$SOCKET_PATH" ]
+}
+
+start_log_mirror() {
+    [ -w "$SYSTEM_LOG_FILE" ] || return 0
+    nohup tail -n 0 -F "$LOG_FILE" >>"$SYSTEM_LOG_FILE" 2>&1 &
+    echo $! > "$LOG_MIRROR_PID_FILE"
 }
 
 install_runtime() {
@@ -87,9 +95,12 @@ start)
     export MOVIEPILOT_NO_AUTH=1 MOVIEPILOT_STDIO_LOG_FILE="${LOG_FILE}"
     export MOVIEPILOT_ALLOWED_PATHS_FILE="$ACCESS_PATHS_FILE"
     export CONFIG_DIR MOVIEPILOT_CONFIG="$CONFIG_DIR"
+    export MOVIEPILOT_LOG_FILE="$LOG_FILE" MOVIEPILOT_PID_FILE="$PID_FILE"
     # fnOS injects user-approved folders through this variable.  nohup inherits it.
     export TRIM_DATA_ACCESSIBLE_PATHS="${TRIM_DATA_ACCESSIBLE_PATHS:-}"
     unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+    echo "[fnOS] MoviePilot service starting" >>"$LOG_FILE"
+    start_log_mirror
     nohup "${VENV}/bin/python" -u -m app.main >>"$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     [ -x "${APP_DIR}/public/node/bin/node" ] || exit 1
@@ -103,7 +114,9 @@ stop)
         pid_running "$PID_FILE" && kill -9 "$(cat "$PID_FILE")" 2>/dev/null || true
     fi
     pid_running "$FRONT_PID_FILE" && kill "$(cat "$FRONT_PID_FILE")" 2>/dev/null || true
+    pid_running "$LOG_MIRROR_PID_FILE" && kill "$(cat "$LOG_MIRROR_PID_FILE")" 2>/dev/null || true
     rm -f "$FRONT_PID_FILE"
+    rm -f "$LOG_MIRROR_PID_FILE"
     rm -f "$PID_FILE"
     rm -f "$SOCKET_PATH"
     ;;

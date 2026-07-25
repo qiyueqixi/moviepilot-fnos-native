@@ -14,6 +14,8 @@ const backendUrl = `${backendHost}:${backendPort}`
 const assetsPath = path.join(__dirname, 'assets')
 const indexPath = path.join(__dirname, 'index.html')
 const configPath = process.env.CONFIG_DIR || path.join(__dirname, '..', 'config')
+const logPath = process.env.MOVIEPILOT_LOG_FILE || path.join(configPath, '..', 'logs', 'moviepilot.log')
+const backendPidPath = process.env.MOVIEPILOT_PID_FILE || ''
 const fnosScale = 0.92
 const fnosCompactStyle = `<style id="fnos-compact-ui">
 @media (min-width: 900px) {
@@ -59,6 +61,7 @@ function loadingPage (basePath = '/') {
     .logo { width: 72px; height: 72px; margin-bottom: 22px; }
     h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: 0; }
     p { margin: 10px 0 0; color: #6b6f78; font-size: 14px; line-height: 1.6; }
+    #error { display: none; max-height: 132px; margin: 18px 0 0; padding: 12px 14px; overflow: auto; border: 1px solid #e4a7aa; border-radius: 6px; color: #9f242a; background: rgba(255, 244, 244, .9); font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
     .progress { width: 220px; height: 3px; margin: 28px auto 0; overflow: hidden; background: #dfe1e7; border-radius: 2px; }
     .progress::after {
       content: "";
@@ -77,6 +80,7 @@ function loadingPage (basePath = '/') {
       p { color: #a8abb3; }
       .progress { background: #343740; }
       #retry { color: #b99af7; }
+      #error { border-color: #744247; color: #ffb3b7; background: rgba(69, 27, 31, .82); }
     }
   </style>
 </head>
@@ -85,12 +89,15 @@ function loadingPage (basePath = '/') {
     <img class="logo" src="./logo.svg" alt="MoviePilot">
     <h1>MoviePilot 正在启动</h1>
     <p id="detail">正在初始化运行环境和后台服务</p>
+    <pre id="error" role="alert"></pre>
     <div class="progress" aria-label="启动中"></div>
     <button id="retry" type="button">重新检查</button>
   </main>
   <script>
     const startedAt = Date.now()
     const detail = document.querySelector('#detail')
+    const error = document.querySelector('#error')
+    const progress = document.querySelector('.progress')
     const retry = document.querySelector('#retry')
     let checking = false
 
@@ -105,13 +112,24 @@ function loadingPage (basePath = '/') {
           location.reload()
           return
         }
+        detail.textContent = result.status || '后台服务启动中'
+        if (result.error) {
+          error.textContent = result.error
+          error.style.display = 'block'
+          progress.style.display = 'none'
+          retry.style.display = 'block'
+        } else {
+          error.textContent = ''
+          error.style.display = 'none'
+          progress.style.display = 'block'
+        }
       } catch (_) {}
       checking = false
       const seconds = Math.floor((Date.now() - startedAt) / 1000)
-      detail.textContent = seconds < 90
-        ? '后台服务启动中，已等待 ' + seconds + ' 秒'
-        : '启动时间较长，可在应用文件的 logs/moviepilot.log 查看日志'
-      if (seconds >= 90) retry.style.display = 'block'
+      if (seconds >= 90 && !error.textContent) {
+        detail.textContent = '启动时间较长，可在应用文件的 logs/moviepilot.log 查看日志'
+        retry.style.display = 'block'
+      }
     }
 
     retry.addEventListener('click', check)
@@ -131,6 +149,72 @@ function backendReady () {
     request.on('error', () => resolve(false))
     request.on('timeout', () => { request.destroy(); resolve(false) })
   })
+}
+
+function cleanLogLine (line) {
+  return line
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/([?&](?:token|apikey|api_key)=)[^&\s]+/gi, '$1***')
+    .replace(/((?:token|apikey|api_key|password|passwd|secret)\s*[=:]\s*)[^\s&,]+/gi, '$1***')
+    .trim()
+}
+
+function backendProcessRunning () {
+  if (!backendPidPath) return true
+  try {
+    const pid = Number(fs.readFileSync(backendPidPath, 'utf8').trim())
+    if (!Number.isInteger(pid) || pid <= 0) return false
+    process.kill(pid, 0)
+    return true
+  } catch (_) {
+    return false
+  }
+}
+
+function startupState () {
+  let content
+  try {
+    const stat = fs.statSync(logPath)
+    const length = Math.min(stat.size, 128 * 1024)
+    const buffer = Buffer.alloc(length)
+    const fd = fs.openSync(logPath, 'r')
+    try {
+      fs.readSync(fd, buffer, 0, length, stat.size - length)
+    } finally {
+      fs.closeSync(fd)
+    }
+    content = buffer.toString('utf8')
+  } catch (_) {
+    return { status: '正在准备运行环境', error: null }
+  }
+
+  const marker = '[fnOS] MoviePilot service starting'
+  const markerIndex = content.lastIndexOf(marker)
+  const current = markerIndex >= 0 ? content.slice(markerIndex + marker.length) : content
+  const lines = current.split(/\r?\n/).map(cleanLogLine).filter(Boolean)
+  const useful = lines.filter(line =>
+    !/^INFO:\s+127\.0\.0\.1:/.test(line) &&
+    !/^SQLite database journal mode set to:/.test(line) &&
+    !/^Async SQLite database journal mode set to:/.test(line)
+  )
+  const errorPatterns = /(?:\bERROR\b|Traceback \(most recent call last\)|Fatal Python error|\w*(?:Error|Exception):|Permission denied|ModuleNotFoundError)/i
+  const errorIndex = useful.findLastIndex(line => errorPatterns.test(line))
+  let error = null
+  if (errorIndex >= 0) {
+    const first = Math.max(0, errorIndex - 2)
+    error = useful.slice(first, errorIndex + 1).join('\n').slice(-900)
+  }
+  if (!backendProcessRunning()) {
+    error = error || 'MoviePilot 后台进程已退出，请查看 logs/moviepilot.log 获取完整日志。'
+  }
+  const statusLine = [...useful].reverse().find(line =>
+    !errorPatterns.test(line) &&
+    !/^(?:WARNING:|收到信号|Shutting down|INFO:\s+(?:Shutting down|Finished server process|Application shutdown complete))/i.test(line)
+  )
+  const status = statusLine
+    ? statusLine.replace(/^(?:INFO|DEBUG):\s*/, '').slice(0, 180)
+    : '后台服务启动中'
+  return { status, error }
 }
 
 function scaleMediaQueries (css) {
@@ -191,7 +275,8 @@ app.use((req, res, next) => {
 
 app.get('/fnos-ready', async (_req, res) => {
   isBackendReady = await backendReady()
-  res.set('Cache-Control', 'no-store').json({ ready: isBackendReady })
+  const state = isBackendReady ? { status: '启动完成', error: null } : startupState()
+  res.set('Cache-Control', 'no-store').json({ ready: isBackendReady, ...state })
 })
 app.get('/fnos-loading-background', (_req, res) => {
   const background = loadingBackgroundNames

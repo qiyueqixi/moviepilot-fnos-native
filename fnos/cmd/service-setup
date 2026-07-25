@@ -4,6 +4,15 @@ set -e
 LEGACY_PROXY_FILE="${TRIM_PKGVAR}/.proxy"
 VENV="${TRIM_PKGVAR}/venv"
 
+prepare_system_log() {
+    local system_log="/var/log/apps/${TRIM_APPNAME:-moviepilot}.log"
+    touch "$system_log" 2>/dev/null || return 0
+    if [ -n "${TRIM_UID:-}" ] && [ -n "${TRIM_GID:-}" ]; then
+        chown "${TRIM_UID}:${TRIM_GID}" "$system_log" 2>/dev/null || true
+    fi
+    chmod 640 "$system_log" 2>/dev/null || true
+}
+
 get_config_dir() {
     local paths="${TRIM_DATA_SHARE_PATHS:-}"
     local config_dir="${paths%%:*}"
@@ -69,6 +78,7 @@ service_postinst() {
         [ -x "${VENV}/bin/python" ] || { install_log "离线运行时解压失败"; return 1; }
     fi
     mkdir -p "${TRIM_PKGVAR}/core"
+    prepare_system_log
     chown -R "${TRIM_UID}:${TRIM_GID}" "${TRIM_PKGVAR}" 2>/dev/null || true
     chown -R "${TRIM_UID}:${TRIM_GID}" "${TRIM_APPDEST}" 2>/dev/null || true
 }

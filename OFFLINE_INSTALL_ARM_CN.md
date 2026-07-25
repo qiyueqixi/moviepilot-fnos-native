@@ -4,13 +4,13 @@
 
 ## 文件说明
 
-- `moviepilot_2.14.6-21_arm.fpk`：完整离线安装包，已经内置运行环境，推荐使用。
-- `moviepilot_2.14.6-22_arm_installer.fpk`：拆分版安装包，不含 Python 运行环境。
+- `moviepilot_2.14.6-25_arm.fpk`：完整离线安装包，已经内置运行环境，推荐使用。
+- `moviepilot_2.14.6-26_arm_installer.fpk`：拆分版安装包，不含 Python 运行环境。
 - `moviepilot-runtime-arm-python311.tgz`：拆分版所需的 ARM64 运行时数据包。
 
 ## 完整包安装
 
-1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-21_arm.fpk`。
+1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-25_arm.fpk`。
 2. 按安装向导完成安装，然后启动 MoviePilot。
 3. 从飞牛桌面打开 MoviePilot。应用已启用免登录模式，无需输入 MoviePilot 登录密码。
 
@@ -18,7 +18,7 @@
 
 ## 拆分包安装
 
-1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-22_arm_installer.fpk`。
+1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-26_arm_installer.fpk`。
 2. 安装完成后先不要启动 MoviePilot。
 3. 打开 fnOS 的“应用文件”，进入 `moviepilot/runtime` 目录。
 4. 上传 `moviepilot-runtime-arm-python311.tgz`，不要修改文件名。
@@ -34,6 +34,8 @@
 卸载时选择“保留数据”会保留以上目录；选择“删除全部数据”会删除 MoviePilot 对应的全部应用目录。
 
 ## 自定义启动背景
+
+后台启动期间会显示当前初始化进度；检测到启动错误或后台进程提前退出时，页面会直接显示错误摘要，完整内容保存在 `moviepilot/logs/moviepilot.log`。
 
 将以下任意一个文件上传到 `moviepilot/config`，重新打开应用即可生效：
 

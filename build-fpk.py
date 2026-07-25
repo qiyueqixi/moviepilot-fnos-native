@@ -69,6 +69,37 @@ def patch_resource_auth(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
+def patch_bangumi_proxy(data: bytes) -> bytes:
+    """Refresh Bangumi request helpers so they always use the current app proxy."""
+    text = data.decode("utf-8").replace("\r\n", "\n")
+    sync_needle = "        resp = self._req.get_res(url=req_url, params=params)"
+    sync_replacement = (
+        "        self._req = RequestUtils(\n"
+        "            ua=settings.NORMAL_USER_AGENT,\n"
+        "            proxies=settings.PROXY,\n"
+        "            session=self._session,\n"
+        "        )\n"
+        "        resp = self._req.get_res(url=req_url, params=params)"
+    )
+    async_needle = "        resp = await self._async_req.get_res(url=req_url, params=params)"
+    async_replacement = (
+        "        self._async_req = AsyncRequestUtils(\n"
+        "            ua=settings.NORMAL_USER_AGENT,\n"
+        "            proxies=settings.PROXY,\n"
+        "        )\n"
+        "        resp = await self._async_req.get_res(url=req_url, params=params)"
+    )
+    if sync_replacement not in text:
+        if sync_needle not in text:
+            raise SystemExit("MoviePilot Bangumi sync proxy patch target was not found")
+        text = text.replace(sync_needle, sync_replacement, 1)
+    if async_replacement not in text:
+        if async_needle not in text:
+            raise SystemExit("MoviePilot Bangumi async proxy patch target was not found")
+        text = text.replace(async_needle, async_replacement, 1)
+    return text.encode("utf-8")
+
+
 def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
     """Normalize permissions and place desktop UI and required resources in app.tgz."""
     output = Path(tempfile.mkstemp(suffix=".tgz")[1])
@@ -101,6 +132,8 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
                 data = archive.extractfile(member).read()
                 if member.name == "app/core/security.py":
                     data = patch_resource_auth(data)
+                elif member.name == "app/modules/bangumi/bangumi.py":
+                    data = patch_bangumi_proxy(data)
                 member.size = len(data)
                 target.addfile(member, io.BytesIO(data))
             else:
