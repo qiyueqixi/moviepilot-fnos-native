@@ -4,13 +4,13 @@
 
 ## 文件说明
 
-- `moviepilot_2.14.6-15_arm.fpk`：完整离线安装包，已经内置运行环境，推荐使用。
-- `moviepilot_2.14.6-16_arm_installer.fpk`：拆分版安装包，不含 Python 运行环境。
+- `moviepilot_2.14.6-17_arm.fpk`：完整离线安装包，已经内置运行环境，推荐使用。
+- `moviepilot_2.14.6-18_arm_installer.fpk`：拆分版安装包，不含 Python 运行环境。
 - `moviepilot-runtime-arm-python311.tgz`：拆分版所需的 ARM64 运行时数据包。
 
 ## 完整包安装
 
-1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-15_arm.fpk`。
+1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-17_arm.fpk`。
 2. 按安装向导完成安装，然后启动 MoviePilot。
 3. 从飞牛桌面打开 MoviePilot。应用已启用免登录模式，无需输入 MoviePilot 登录密码。
 
@@ -18,7 +18,7 @@
 
 ## 拆分包安装
 
-1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-16_arm_installer.fpk`。
+1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-18_arm_installer.fpk`。
 2. 安装完成后先不要启动 MoviePilot。
 3. 打开 fnOS 的“应用文件”，进入 `moviepilot/runtime` 目录。
 4. 上传 `moviepilot-runtime-arm-python311.tgz`，不要修改文件名。
@@ -49,3 +49,5 @@
 应用通过 fnOS 统一网关 `/app/moviepilot/` 访问。内部 API 只监听 `127.0.0.1:3001`，不会向局域网开放独立端口。
 
 MoviePilot 文件管理器只显示安装或应用设置中明确授权的目录。未授权时不会显示 NAS 系统目录。
+
+安装向导配置代理后，回环地址及 `10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16` 内网地址会自动绕过代理，局域网下载器仍使用直连。

@@ -90,6 +90,10 @@ start)
     export CONFIG_DIR MOVIEPILOT_CONFIG="$CONFIG_DIR"
     # fnOS injects user-approved folders through this variable.  nohup inherits it.
     export TRIM_DATA_ACCESSIBLE_PATHS="${TRIM_DATA_ACCESSIBLE_PATHS:-}"
+    # Keep downloaders and other LAN services off the outbound proxy.
+    LOCAL_NO_PROXY="127.0.0.1,localhost,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    export NO_PROXY="${NO_PROXY:+${NO_PROXY},}${LOCAL_NO_PROXY}"
+    export no_proxy="$NO_PROXY"
     if [ -s "$PROXY_FILE" ]; then
         proxy="$(cat "$PROXY_FILE")"
         export HTTP_PROXY="$proxy" HTTPS_PROXY="$proxy" ALL_PROXY="$proxy"

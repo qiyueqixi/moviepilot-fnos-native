@@ -325,6 +325,7 @@ curl -I http://127.0.0.1:3001/api/v1/system/global?token=moviepilot
 - 页面资源 404：检查统一网关前缀、`<base>` 注入和 `/fnos-assets` 路径转换。
 - 应用文件为空：检查 `fnos/config/resource` 是否打入 FPK，以及 fnOS 是否注入 `TRIM_DATA_SHARE_PATHS`。
 - 能看到未授权目录：检查 `.accessible_paths` 和 `local.py` 是否被正确打入 `app.tgz`。
+- 局域网下载器连接超时：检查服务进程是否同时继承了代理和 `NO_PROXY/no_proxy`；启动脚本默认排除回环地址和三个内网网段。
 
 ## 14. 自定义启动背景
 
