@@ -94,7 +94,7 @@ fnOS 调用 `fnos/cmd/*_init` 和 `*_callback`，这些入口统一加载 `insta
 | 阶段 | 主要行为 |
 | --- | --- |
 | 安装前 | 校验环境，初始化应用变量 |
-| 安装后 | 分别保存应用代理和进程代理，迁移旧代理，解压内置运行时，修正目录所有者 |
+| 安装后 | 保存应用代理，迁移并清理旧进程代理，解压内置运行时，修正目录所有者 |
 | 启动 | 解析应用文件目录，安装拆分运行时，启动 Python 和 Node |
 | 停止 | 先正常终止进程，超时后强制终止，删除 PID 和 Socket |
 | 配置后 | 更新代理设置 |
@@ -126,16 +126,15 @@ moviepilot/runtime
 /vol1/@appshare/moviepilot/runtime
 ```
 
-应用私有运行数据位于 `${TRIM_PKGVAR}`，常见路径为 `/vol1/@appdata/moviepilot`。其中包括虚拟环境、PID、进程代理配置和授权路径快照。MoviePilot 应用代理写入共享配置目录的 `app.env`，进程代理单独保存在私有目录的 `.process-proxy`。
+应用私有运行数据位于 `${TRIM_PKGVAR}`，常见路径为 `/vol1/@appdata/moviepilot`。其中包括虚拟环境、PID 和授权路径快照。MoviePilot 应用代理写入共享配置目录的 `app.env`。
 
-两个代理的职责不同：
+安装向导的 `wizard_proxy` 只更新 `PROXY_HOST`。MoviePilot 的 GitHub 检查、更新、插件、元数据以及带代理开关的模块会显式读取 `settings.PROXY`；下载器等没有主动使用该配置的模块不会经过代理。
 
-- `wizard_proxy` 更新 `PROXY_HOST`，只影响 MoviePilot 主动使用 `settings.PROXY` 的模块。
-- `wizard_process_proxy` 设置整个服务进程的 `HTTP_PROXY`、`HTTPS_PROXY` 和 `ALL_PROXY`。
+启动脚本不得设置全进程 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY`，并会在启动前清除从父进程继承的同名变量。发现某个具体模块需要代理时，应让该模块显式使用 `settings.PROXY`，不能用全进程代理扩大作用范围。
 
-升级时如果发现旧版 `.proxy`，安装脚本会把其值迁移到 `PROXY_HOST` 并删除旧文件。除非用户重新填写高级选项，否则升级后不再启用全进程代理。
+升级时如果发现旧版 `.proxy`，安装脚本会在服务启动前把其值迁移到 `PROXY_HOST` 并删除旧文件；历史 `.process-proxy` 也会被清理。
 
-配置向导不能安全回显包含凭据的代理 URL，因此空输入表示保留现有值。`wizard_clear_app_proxy` 和 `wizard_clear_process_proxy` 提供显式清除操作，不能把空输入直接解释为删除。
+配置向导不能安全回显包含凭据的代理 URL，因此空输入表示保留现有值。`wizard_clear_app_proxy` 提供显式清除操作，不能把空输入直接解释为删除。
 
 媒体库、下载目录等额外目录由用户在 fnOS 应用设置中授权。fnOS 通过 `TRIM_DATA_ACCESSIBLE_PATHS` 注入授权列表；启动脚本将其写入 `.accessible_paths`，`fnos/resources/local.py` 在列目录及复制、移动、删除、链接等每个操作前再次检查路径是否位于授权根目录内。
 
@@ -334,7 +333,7 @@ curl -I http://127.0.0.1:3001/api/v1/system/global?token=moviepilot
 - 页面资源 404：检查统一网关前缀、`<base>` 注入和 `/fnos-assets` 路径转换。
 - 应用文件为空：检查 `fnos/config/resource` 是否打入 FPK，以及 fnOS 是否注入 `TRIM_DATA_SHARE_PATHS`。
 - 能看到未授权目录：检查 `.accessible_paths` 和 `local.py` 是否被正确打入 `app.tgz`。
-- 局域网下载器连接超时：检查是否误用了进程网络代理；优先改用 MoviePilot 应用代理。确需进程代理时，确认服务同时继承 `NO_PROXY/no_proxy`。
+- 局域网下载器连接超时：检查服务进程是否意外继承了宿主环境的 `HTTP_PROXY/HTTPS_PROXY/ALL_PROXY`。FPK 自身只写入 `PROXY_HOST`，不会设置这些变量。
 
 ## 14. 自定义启动背景
 

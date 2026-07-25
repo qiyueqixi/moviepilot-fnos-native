@@ -2,7 +2,6 @@
 set -e
 
 LEGACY_PROXY_FILE="${TRIM_PKGVAR}/.proxy"
-PROCESS_PROXY_FILE="${TRIM_PKGVAR}/.process-proxy"
 VENV="${TRIM_PKGVAR}/venv"
 
 get_config_dir() {
@@ -50,17 +49,6 @@ save_app_proxy() {
     mv -f "$temp_env" "$app_env"
 }
 
-save_process_proxy() {
-    local proxy="$1"
-    if [ -z "$proxy" ]; then
-        rm -f "$PROCESS_PROXY_FILE"
-        return 0
-    fi
-    validate_proxy "$proxy"
-    printf '%s\n' "$proxy" > "$PROCESS_PROXY_FILE"
-    chmod 600 "$PROCESS_PROXY_FILE"
-}
-
 migrate_legacy_proxy() {
     [ -s "$LEGACY_PROXY_FILE" ] || { rm -f "$LEGACY_PROXY_FILE"; return 0; }
     local proxy="$(cat "$LEGACY_PROXY_FILE")"
@@ -72,7 +60,7 @@ migrate_legacy_proxy() {
 service_postinst() {
     migrate_legacy_proxy
     [ -z "${wizard_proxy:-}" ] || save_app_proxy "$wizard_proxy"
-    [ -z "${wizard_process_proxy:-}" ] || save_process_proxy "$wizard_process_proxy"
+    rm -f "${TRIM_PKGVAR}/.process-proxy"
     local bundled_runtime="${TRIM_APPDEST}/runtime/venv.tgz"
     if [ -f "$bundled_runtime" ]; then
         rm -rf "$VENV"
@@ -92,11 +80,7 @@ service_postconfig() {
     elif [ "${wizard_clear_app_proxy:-false}" = "true" ]; then
         save_app_proxy ""
     fi
-    if [ -n "${wizard_process_proxy:-}" ]; then
-        save_process_proxy "$wizard_process_proxy"
-    elif [ "${wizard_clear_process_proxy:-false}" = "true" ]; then
-        save_process_proxy ""
-    fi
+    rm -f "${TRIM_PKGVAR}/.process-proxy"
 }
 
 remove_shared_data() {
