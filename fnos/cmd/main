@@ -32,7 +32,7 @@ VENV="${VAR_DIR}/venv"
 PID_FILE="${VAR_DIR}/moviepilot.pid"
 FRONT_PID_FILE="${VAR_DIR}/moviepilot-frontend.pid"
 LOG_FILE="${LOG_DIR}/moviepilot.log"
-PROXY_FILE="${VAR_DIR}/.proxy"
+PROCESS_PROXY_FILE="${VAR_DIR}/.process-proxy"
 ACCESS_PATHS_FILE="${VAR_DIR}/.accessible_paths"
 SOCKET_PATH="${APP_DIR}/moviepilot.sock"
 GATEWAY_PREFIX="/app/moviepilot"
@@ -94,8 +94,8 @@ start)
     LOCAL_NO_PROXY="127.0.0.1,localhost,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
     export NO_PROXY="${NO_PROXY:+${NO_PROXY},}${LOCAL_NO_PROXY}"
     export no_proxy="$NO_PROXY"
-    if [ -s "$PROXY_FILE" ]; then
-        proxy="$(cat "$PROXY_FILE")"
+    if [ -s "$PROCESS_PROXY_FILE" ]; then
+        proxy="$(cat "$PROCESS_PROXY_FILE")"
         export HTTP_PROXY="$proxy" HTTPS_PROXY="$proxy" ALL_PROXY="$proxy"
         export http_proxy="$proxy" https_proxy="$proxy" all_proxy="$proxy"
     fi

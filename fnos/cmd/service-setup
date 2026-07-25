@@ -1,31 +1,78 @@
 #!/bin/bash
 set -e
 
-PROXY_FILE="${TRIM_PKGVAR}/.proxy"
+LEGACY_PROXY_FILE="${TRIM_PKGVAR}/.proxy"
+PROCESS_PROXY_FILE="${TRIM_PKGVAR}/.process-proxy"
 VENV="${TRIM_PKGVAR}/venv"
 
-apply_proxy() {
+get_config_dir() {
+    local paths="${TRIM_DATA_SHARE_PATHS:-}"
+    local config_dir="${paths%%:*}"
+    [ -n "$config_dir" ] || config_dir="${TRIM_PKGVAR}/config"
+    printf '%s' "$config_dir"
+}
+
+validate_proxy() {
     local proxy="$1"
     [ -n "$proxy" ] || return 0
     case "$proxy" in
         http://*|https://*) ;;
         *) install_log "代理地址必须以 http:// 或 https:// 开头"; return 1 ;;
     esac
-    export HTTP_PROXY="$proxy" HTTPS_PROXY="$proxy" ALL_PROXY="$proxy"
-    export http_proxy="$proxy" https_proxy="$proxy" all_proxy="$proxy"
 }
 
-save_proxy() {
+save_app_proxy() {
     local proxy="$1"
-    [ -n "$proxy" ] || return 0
-    apply_proxy "$proxy"
-    printf '%s\n' "$proxy" > "$PROXY_FILE"
-    chmod 600 "$PROXY_FILE"
+    local config_dir="$(get_config_dir)"
+    local app_env="${config_dir}/app.env"
+    local temp_env="${app_env}.tmp.$$"
+    validate_proxy "$proxy"
+    mkdir -p "$config_dir"
+    if [ -f "$app_env" ]; then
+        awk -v value="$proxy" '
+            BEGIN { updated = 0; quote = sprintf("%c", 39) }
+            /^[[:space:]]*PROXY_HOST[[:space:]]*=/ {
+                if (!updated) print "PROXY_HOST=" quote value quote
+                updated = 1
+                next
+            }
+            { print }
+            END { if (!updated) print "PROXY_HOST=" quote value quote }
+        ' "$app_env" > "$temp_env"
+        chown --reference="$app_env" "$temp_env" 2>/dev/null || true
+    else
+        printf "PROXY_HOST='%s'\n" "$proxy" > "$temp_env"
+        if [ -n "${TRIM_UID:-}" ] && [ -n "${TRIM_GID:-}" ]; then
+            chown "${TRIM_UID}:${TRIM_GID}" "$temp_env" 2>/dev/null || true
+        fi
+    fi
+    chmod 600 "$temp_env"
+    mv -f "$temp_env" "$app_env"
+}
+
+save_process_proxy() {
+    local proxy="$1"
+    if [ -z "$proxy" ]; then
+        rm -f "$PROCESS_PROXY_FILE"
+        return 0
+    fi
+    validate_proxy "$proxy"
+    printf '%s\n' "$proxy" > "$PROCESS_PROXY_FILE"
+    chmod 600 "$PROCESS_PROXY_FILE"
+}
+
+migrate_legacy_proxy() {
+    [ -s "$LEGACY_PROXY_FILE" ] || { rm -f "$LEGACY_PROXY_FILE"; return 0; }
+    local proxy="$(cat "$LEGACY_PROXY_FILE")"
+    save_app_proxy "$proxy"
+    rm -f "$LEGACY_PROXY_FILE"
+    install_log "旧版全进程代理已迁移为 MoviePilot 应用代理"
 }
 
 service_postinst() {
-    [ -z "${wizard_proxy:-}" ] || save_proxy "$wizard_proxy"
-    [ ! -f "$PROXY_FILE" ] || apply_proxy "$(cat "$PROXY_FILE")"
+    migrate_legacy_proxy
+    [ -z "${wizard_proxy:-}" ] || save_app_proxy "$wizard_proxy"
+    [ -z "${wizard_process_proxy:-}" ] || save_process_proxy "$wizard_process_proxy"
     local bundled_runtime="${TRIM_APPDEST}/runtime/venv.tgz"
     if [ -f "$bundled_runtime" ]; then
         rm -rf "$VENV"
@@ -39,7 +86,17 @@ service_postinst() {
 }
 
 service_postconfig() {
-    [ -z "${wizard_proxy:-}" ] || save_proxy "$wizard_proxy"
+    migrate_legacy_proxy
+    if [ -n "${wizard_proxy:-}" ]; then
+        save_app_proxy "$wizard_proxy"
+    elif [ "${wizard_clear_app_proxy:-false}" = "true" ]; then
+        save_app_proxy ""
+    fi
+    if [ -n "${wizard_process_proxy:-}" ]; then
+        save_process_proxy "$wizard_process_proxy"
+    elif [ "${wizard_clear_process_proxy:-false}" = "true" ]; then
+        save_process_proxy ""
+    fi
 }
 
 remove_shared_data() {
