@@ -154,6 +154,7 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
     resources["public/no-auth.js"] = resource_dir / "no-auth.js"
     resources["public/service.js"] = resource_dir / "service.js"
     resources["public/backend-supervisor.sh"] = resource_dir / "backend-supervisor.sh"
+    resources["public/loading-background.jpg"] = resource_dir / "loading-background.jpg"
     if node_resource := platform_resources.get("node"):
         resources["public/node/bin/node"] = resource_dir / node_resource
     if include_runtime:

@@ -232,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-31 --platform x86
-python build-fpk.py --version 2.14.6-31 --platform arm
+python build-fpk.py --version 2.14.6-33 --platform x86
+python build-fpk.py --version 2.14.6-33 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-32 --platform x86 --without-runtime --output-name moviepilot_2.14.6-32_x86_installer.fpk
-python build-fpk.py --version 2.14.6-32 --platform arm --without-runtime --output-name moviepilot_2.14.6-32_arm_installer.fpk
+python build-fpk.py --version 2.14.6-34 --platform x86 --without-runtime --output-name moviepilot_2.14.6-34_x86_installer.fpk
+python build-fpk.py --version 2.14.6-34 --platform arm --without-runtime --output-name moviepilot_2.14.6-34_arm_installer.fpk
 ```
 
 产物写入 `dist/`。`build-fpk.py` 会：
@@ -270,7 +270,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-31_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-33_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -347,7 +347,7 @@ loading-background.jpeg
 loading-background.png
 ```
 
-Node 网关按以上顺序选择第一个存在的文件。该资源通过 `/fnos-loading-background` 返回，不需要改包。
+安装包内置 `public/loading-background.jpg` 作为默认背景。Node 网关先按以上顺序选择配置目录中的第一个文件，均不存在时才使用包内图片。该资源统一通过 `/fnos-loading-background` 返回。
 
 ## 15. 升级上游 MoviePilot
 

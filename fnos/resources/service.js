@@ -30,6 +30,7 @@ const loadingBackgroundNames = [
   'loading-background.jpeg',
   'loading-background.png',
 ]
+const bundledLoadingBackgroundPath = path.join(__dirname, 'loading-background.jpg')
 let isBackendReady = false
 
 function loadingPage (basePath = '/') {
@@ -285,7 +286,8 @@ app.get('/fnos-ready', async (_req, res) => {
 app.get('/fnos-loading-background', (_req, res) => {
   const background = loadingBackgroundNames
     .map(name => path.join(configPath, name))
-    .find(candidate => fs.existsSync(candidate) && fs.statSync(candidate).isFile())
+    .find(candidate => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) ||
+    (fs.existsSync(bundledLoadingBackgroundPath) ? bundledLoadingBackgroundPath : null)
   if (!background) {
     res.sendStatus(404)
     return
