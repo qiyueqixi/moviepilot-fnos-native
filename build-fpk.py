@@ -69,6 +69,46 @@ def patch_resource_auth(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
+def patch_no_auth_level(name: str, data: bytes) -> bytes:
+    """Keep no-login enabled while reporting the real site-auth level."""
+    text = data.decode("utf-8").replace("\r\n", "\n")
+    if name == "app/core/security.py":
+        old = (
+            "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n"
+            "        return schemas.TokenPayload(sub=0, username=settings.SUPERUSER, "
+            "super_user=True, level=99, purpose=\"authentication\")"
+        )
+        new = (
+            "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n"
+            "        from app.helper.sites import SitesHelper  # noqa\n"
+            "        return schemas.TokenPayload(sub=0, username=settings.SUPERUSER, "
+            "super_user=True, level=SitesHelper().auth_level, purpose=\"authentication\")"
+        )
+    elif name == "app/api/endpoints/login.py":
+        old = (
+            "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n"
+            "        access_token = security.create_access_token(userid=0, username=settings.SUPERUSER, "
+            "super_user=True, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))\n"
+            "        return schemas.Token(access_token=access_token, token_type=\"bearer\", "
+            "super_user=True, user_id=0, user_name=settings.SUPERUSER, level=99, permissions={}, wizard=False)"
+        )
+        new = (
+            "    if os.getenv(\"MOVIEPILOT_NO_AUTH\") == \"1\":\n"
+            "        level = SitesHelper().auth_level\n"
+            "        access_token = security.create_access_token(userid=0, username=settings.SUPERUSER, "
+            "super_user=True, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), level=level)\n"
+            "        return schemas.Token(access_token=access_token, token_type=\"bearer\", "
+            "super_user=True, user_id=0, user_name=settings.SUPERUSER, level=level, permissions={}, wizard=False)"
+        )
+    else:
+        return data
+    if new not in text:
+        if old not in text:
+            raise SystemExit(f"MoviePilot no-auth level patch target was not found: {name}")
+        text = text.replace(old, new, 1)
+    return text.encode("utf-8")
+
+
 def patch_bangumi_proxy(data: bytes) -> bytes:
     """Refresh Bangumi request helpers so they always use the current app proxy."""
     text = data.decode("utf-8").replace("\r\n", "\n")
@@ -113,6 +153,7 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
     resources["app/modules/filemanager/storages/local.py"] = resource_dir / "local.py"
     resources["public/no-auth.js"] = resource_dir / "no-auth.js"
     resources["public/service.js"] = resource_dir / "service.js"
+    resources["public/backend-supervisor.sh"] = resource_dir / "backend-supervisor.sh"
     if node_resource := platform_resources.get("node"):
         resources["public/node/bin/node"] = resource_dir / node_resource
     if include_runtime:
@@ -132,6 +173,9 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
                 data = archive.extractfile(member).read()
                 if member.name == "app/core/security.py":
                     data = patch_resource_auth(data)
+                    data = patch_no_auth_level(member.name, data)
+                elif member.name == "app/api/endpoints/login.py":
+                    data = patch_no_auth_level(member.name, data)
                 elif member.name == "app/modules/bangumi/bangumi.py":
                     data = patch_bangumi_proxy(data)
                 member.size = len(data)

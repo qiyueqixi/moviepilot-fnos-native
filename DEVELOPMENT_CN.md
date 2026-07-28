@@ -146,8 +146,8 @@ moviepilot/runtime
 
 - `scripts/apps/moviepilot/patch-native.py` 修改后端令牌解析、当前用户和登录接口。
 - 资源 Cookie 鉴权在免登录模式下返回内置管理员身份，供实时日志 SSE、图片缓存和下载等浏览器资源请求使用。
-- `fnos/resources/no-auth.js` 向前端写入内置管理员状态。
-- 后端返回 ID 为 `0`、等级为 `99` 的 `admin` 管理员。
+- `fnos/resources/no-auth.js` 向前端写入内置管理员状态，并保留未认证时的“站点认证”入口。
+- 后端返回 ID 为 `0` 的 `admin` 管理员，但令牌等级读取 `SitesHelper().auth_level`，不会伪造站点认证结果。
 
 因此从 Docker 迁移旧配置后，不需要修改数据库中的管理员密码。只要使用本 FPK 的启动脚本，旧账户验证不会阻止访问。
 
@@ -232,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-25 --platform x86
-python build-fpk.py --version 2.14.6-25 --platform arm
+python build-fpk.py --version 2.14.6-29 --platform x86
+python build-fpk.py --version 2.14.6-29 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-26 --platform x86 --without-runtime --output-name moviepilot_2.14.6-26_x86_installer.fpk
-python build-fpk.py --version 2.14.6-26 --platform arm --without-runtime --output-name moviepilot_2.14.6-26_arm_installer.fpk
+python build-fpk.py --version 2.14.6-30 --platform x86 --without-runtime --output-name moviepilot_2.14.6-30_x86_installer.fpk
+python build-fpk.py --version 2.14.6-30 --platform arm --without-runtime --output-name moviepilot_2.14.6-30_arm_installer.fpk
 ```
 
 产物写入 `dist/`。`build-fpk.py` 会：
@@ -270,7 +270,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-25_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-29_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -415,7 +415,7 @@ curl --max-time 5 http://127.0.0.1:3001/api/v1/system/global?token=moviepilot
 tail -n 100 /vol1/@appshare/moviepilot/logs/moviepilot.log
 ```
 
-如果日志停在“资源包更新完成，开始重启服务”且 `3001` 未监听，需要通过应用中心重新启动应用。测试流程必须覆盖这次二次启动。
+首次启动遇到资源包更新时，`public/backend-supervisor.sh` 会在后端正常退出后自动拉起一次，不需要用户通过应用中心二次启动。监督脚本只处理当前启动周期内的第一次资源更新退出；普通异常仍会停止并由等待页显示。测试流程应覆盖自动重启后 `/fnos-ready` 恢复就绪。
 
 ### 17.3 系统日志文件会被 fnOS 重新创建
 

@@ -190,7 +190,10 @@ function startupState () {
 
   const marker = '[fnOS] MoviePilot service starting'
   const markerIndex = content.lastIndexOf(marker)
-  const current = markerIndex >= 0 ? content.slice(markerIndex + marker.length) : content
+  const current = (markerIndex >= 0 ? content.slice(markerIndex + marker.length) : content).replace(
+    /\(trapped\) error reading bcrypt version[\s\S]*?AttributeError:\s*module ['"]bcrypt['"] has no attribute ['"]__about__['"]\s*/gi,
+    '',
+  )
   const lines = current.split(/\r?\n/).map(cleanLogLine).filter(Boolean)
   const useful = lines.filter(line =>
     !/^INFO:\s+127\.0\.0\.1:/.test(line) &&

@@ -96,12 +96,13 @@ start)
     export MOVIEPILOT_ALLOWED_PATHS_FILE="$ACCESS_PATHS_FILE"
     export CONFIG_DIR MOVIEPILOT_CONFIG="$CONFIG_DIR"
     export MOVIEPILOT_LOG_FILE="$LOG_FILE" MOVIEPILOT_PID_FILE="$PID_FILE"
+    export MOVIEPILOT_PYTHON="${VENV}/bin/python"
     # fnOS injects user-approved folders through this variable.  nohup inherits it.
     export TRIM_DATA_ACCESSIBLE_PATHS="${TRIM_DATA_ACCESSIBLE_PATHS:-}"
     unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
     echo "[fnOS] MoviePilot service starting" >>"$LOG_FILE"
     start_log_mirror
-    nohup "${VENV}/bin/python" -u -m app.main >>"$LOG_FILE" 2>&1 &
+    nohup bash "${APP_DIR}/public/backend-supervisor.sh" >>"$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     [ -x "${APP_DIR}/public/node/bin/node" ] || exit 1
     nohup "${APP_DIR}/public/node/bin/node" "${APP_DIR}/public/service.js" >>"$LOG_FILE" 2>&1 &

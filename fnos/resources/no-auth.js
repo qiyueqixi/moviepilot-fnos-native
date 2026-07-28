@@ -10,7 +10,7 @@
       sub: '0',
       username: 'admin',
       super_user: true,
-      level: 99,
+      level: 0,
       purpose: 'authentication',
       iat: now,
       exp: now + 315360000,
@@ -28,7 +28,7 @@
     userID: 0,
     userName: 'admin',
     avatar: '',
-    level: 99,
+    level: 0,
     permissions: {},
     wizard: false,
   }))
