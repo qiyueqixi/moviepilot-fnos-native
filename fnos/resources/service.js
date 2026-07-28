@@ -200,14 +200,15 @@ function startupState () {
     !/^SQLite database journal mode set to:/.test(line) &&
     !/^Async SQLite database journal mode set to:/.test(line)
   )
+  const processRunning = backendProcessRunning()
   const errorPatterns = /(?:\bERROR\b|Traceback \(most recent call last\)|Fatal Python error|\w*(?:Error|Exception):|Permission denied|ModuleNotFoundError)/i
-  const errorIndex = useful.findLastIndex(line => errorPatterns.test(line))
+  const errorIndex = processRunning ? -1 : useful.findLastIndex(line => errorPatterns.test(line))
   let error = null
   if (errorIndex >= 0) {
     const first = Math.max(0, errorIndex - 2)
     error = useful.slice(first, errorIndex + 1).join('\n').slice(-900)
   }
-  if (!backendProcessRunning()) {
+  if (!processRunning) {
     error = error || 'MoviePilot 后台进程已退出，请查看 logs/moviepilot.log 获取完整日志。'
   }
   const statusLine = [...useful].reverse().find(line =>

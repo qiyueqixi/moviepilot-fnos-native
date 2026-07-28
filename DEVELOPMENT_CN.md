@@ -232,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-29 --platform x86
-python build-fpk.py --version 2.14.6-29 --platform arm
+python build-fpk.py --version 2.14.6-31 --platform x86
+python build-fpk.py --version 2.14.6-31 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-30 --platform x86 --without-runtime --output-name moviepilot_2.14.6-30_x86_installer.fpk
-python build-fpk.py --version 2.14.6-30 --platform arm --without-runtime --output-name moviepilot_2.14.6-30_arm_installer.fpk
+python build-fpk.py --version 2.14.6-32 --platform x86 --without-runtime --output-name moviepilot_2.14.6-32_x86_installer.fpk
+python build-fpk.py --version 2.14.6-32 --platform arm --without-runtime --output-name moviepilot_2.14.6-32_arm_installer.fpk
 ```
 
 产物写入 `dist/`。`build-fpk.py` 会：
@@ -270,7 +270,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-29_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-31_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -415,7 +415,9 @@ curl --max-time 5 http://127.0.0.1:3001/api/v1/system/global?token=moviepilot
 tail -n 100 /vol1/@appshare/moviepilot/logs/moviepilot.log
 ```
 
-首次启动遇到资源包更新时，`public/backend-supervisor.sh` 会在后端正常退出后自动拉起一次，不需要用户通过应用中心二次启动。监督脚本只处理当前启动周期内的第一次资源更新退出；普通异常仍会停止并由等待页显示。测试流程应覆盖自动重启后 `/fnos-ready` 恢复就绪。
+首次启动遇到资源包更新时，`public/backend-supervisor.sh` 会在检测到当前启动周期的“资源包更新完成”标记后自动拉起一次，不依赖进程退出码。更新正在加载的 `sites` 原生扩展可能使 Python 以 `SIGSEGV/139` 退出，这属于该更新流程的一部分，不应由等待页显示为启动失败。监督脚本只处理当前启动周期内的第一次资源更新退出；没有更新标记的普通异常仍会停止并由等待页显示。测试流程应覆盖自动重启后 `/fnos-ready` 恢复就绪。
+
+等待页只在 `MOVIEPILOT_PID_FILE` 对应的后台监督进程已经退出时提取错误日志。后台仍存活时，TMDB、插件仓库等模块输出的 `ERROR` 属于可恢复的运行状态，只作为日志保留，不显示红色启动失败提示。
 
 ### 17.3 系统日志文件会被 fnOS 重新创建
 
