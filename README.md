@@ -27,8 +27,8 @@
 准备 MoviePilot 的 `app.tgz`、对应架构的 `sites` 官方资源、Node 二进制和 Python 3.11 运行时后执行：
 
 ```powershell
-python build-fpk.py --version 2.14.6-33 --platform x86
-python build-fpk.py --version 2.14.6-33 --platform arm
+python build-fpk.py --version 2.14.6-35 --platform x86
+python build-fpk.py --version 2.14.6-35 --platform arm
 ```
 
 ARM Python 运行时可由已经验证的 x86 运行时和同版本 ARM64 wheels 生成：

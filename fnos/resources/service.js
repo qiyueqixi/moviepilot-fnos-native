@@ -55,8 +55,8 @@ function loadingPage (basePath = '/') {
       content: "";
       position: fixed;
       inset: 0;
-      background: rgba(247, 248, 251, .82);
-      backdrop-filter: blur(8px);
+      background: rgba(247, 248, 251, .10);
+      backdrop-filter: blur(2px);
     }
     main { position: relative; width: min(420px, calc(100vw - 48px)); text-align: center; }
     .logo { width: 72px; height: 72px; margin-bottom: 22px; }
@@ -77,7 +77,7 @@ function loadingPage (basePath = '/') {
     @keyframes loading { from { transform: translateX(-120%); } to { transform: translateX(340%); } }
     @media (prefers-color-scheme: dark) {
       body { color: #f2f2f4; background-color: #14161a; }
-      body::before { background: rgba(18, 20, 24, .84); }
+      body::before { background: rgba(18, 20, 24, .10); }
       p { color: #a8abb3; }
       .progress { background: #343740; }
       #retry { color: #b99af7; }

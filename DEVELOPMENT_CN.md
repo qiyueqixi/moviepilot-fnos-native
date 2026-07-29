@@ -146,8 +146,10 @@ moviepilot/runtime
 
 - `scripts/apps/moviepilot/patch-native.py` 修改后端令牌解析、当前用户和登录接口。
 - 资源 Cookie 鉴权在免登录模式下返回内置管理员身份，供实时日志 SSE、图片缓存和下载等浏览器资源请求使用。
-- `fnos/resources/no-auth.js` 向前端写入内置管理员状态，并保留未认证时的“站点认证”入口。
+- `fnos/resources/no-auth.js` 在前端模块启动前调用免登录接口，写入内置管理员状态和后端返回的真实认证等级。
 - 后端返回 ID 为 `0` 的 `admin` 管理员，但令牌等级读取 `SitesHelper().auth_level`，不会伪造站点认证结果。
+
+`no-auth.js` 不能把等级固定为 `0` 或 `99`。固定为 `0` 会在每次重新打开页面时覆盖浏览器状态，使已完成认证的机器再次显示“用户认证”；固定为 `99` 则会隐藏未认证机器的认证入口。站点认证参数保存在当前机器的 `user.db`，前端只同步后端计算出的等级。
 
 因此从 Docker 迁移旧配置后，不需要修改数据库中的管理员密码。只要使用本 FPK 的启动脚本，旧账户验证不会阻止访问。
 
@@ -232,18 +234,18 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-33 --platform x86
-python build-fpk.py --version 2.14.6-33 --platform arm
+python build-fpk.py --version 2.14.6-35 --platform x86
+python build-fpk.py --version 2.14.6-35 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-34 --platform x86 --without-runtime --output-name moviepilot_2.14.6-34_x86_installer.fpk
-python build-fpk.py --version 2.14.6-34 --platform arm --without-runtime --output-name moviepilot_2.14.6-34_arm_installer.fpk
+python build-fpk.py --version 2.14.6-35 --platform x86 --without-runtime --output-name moviepilot_2.14.6-35_x86_installer.fpk
+python build-fpk.py --version 2.14.6-35 --platform arm --without-runtime --output-name moviepilot_2.14.6-35_arm_installer.fpk
 ```
 
-产物写入 `dist/`。`build-fpk.py` 会：
+同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
 
 - 读取 `app.tgz`。
 - 替换对应架构的 `sites`、文件权限适配、免登录和 Node 网关文件。
@@ -270,7 +272,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-33_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-35_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -314,6 +316,10 @@ cat /var/log/apps/moviepilot.log
 ```bash
 tail -f /vol1/@appshare/moviepilot/logs/moviepilot.log
 ```
+
+应用文件中的 `moviepilot.log` 是 stdout/stderr 汇总日志。`cmd/main` 必须同时设置 `MOVIEPILOT_STDIO_LOG_MAX_BYTES=5242880` 和 `MOVIEPILOT_STDIO_LOG_BACKUP_COUNT=7`，使上游 `configure_rotating_stdio` 按每个 5 MB 滚动并保留 7 个备份，总占用约 40 MB。只设置 `MOVIEPILOT_STDIO_LOG_FILE` 时，上游默认备份数为 0，Python 的 `RotatingFileHandler` 不会真正轮转，文件会持续增长。升级旧版时，`trim_legacy_log` 会在服务进程打开日志前检查旧单文件；超过 40 MB 时只保留末尾约 5 MB，避免超大旧文件进入备份链。
+
+MoviePilot 网页实时日志读取 `config/logs` 下的业务日志，使用上游默认的 5 MB、10 个备份策略；不要把应用文件日志的轮转改成定期删除整个日志目录。
 
 实际数据卷不一定是 `/vol1`，应以 fnOS“应用文件”显示的路径或 `TRIM_DATA_SHARE_PATHS` 为准。
 

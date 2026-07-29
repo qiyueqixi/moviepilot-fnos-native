@@ -52,6 +52,19 @@ start_log_mirror() {
     echo $! > "$LOG_MIRROR_PID_FILE"
 }
 
+trim_legacy_log() {
+    [ -f "$LOG_FILE" ] || return 0
+    local size="$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)"
+    [ "${size:-0}" -gt 41943040 ] || return 0
+    local trimmed="${LOG_FILE}.trim.$$"
+    tail -c 5242880 "$LOG_FILE" 2>/dev/null | sed '1d' > "$trimmed" || {
+        rm -f "$trimmed"
+        return 0
+    }
+    chmod --reference="$LOG_FILE" "$trimmed" 2>/dev/null || chmod 600 "$trimmed"
+    mv -f "$trimmed" "$LOG_FILE"
+}
+
 install_runtime() {
     if [ -d "$VENV" ]; then
         chmod -R u+rwX,go+rX "$VENV" 2>/dev/null || true
@@ -81,6 +94,7 @@ case "${1:-}" in
 start)
     is_running && exit 0
     mkdir -p "$VAR_DIR" "${VAR_DIR}/core" "$CONFIG_DIR" "$LOG_DIR" "$EXPORT_DIR" "$RUNTIME_DIR"
+    trim_legacy_log
     printf '%s' "${TRIM_DATA_ACCESSIBLE_PATHS:-}" > "$ACCESS_PATHS_FILE"
     chmod 600 "$ACCESS_PATHS_FILE"
     if ! install_runtime; then
@@ -93,6 +107,7 @@ start)
     export HOST="127.0.0.1" PORT="3001" NGINX_PORT="0" SUPERUSER="admin" SUPERUSER_PASSWORD=""
     export GATEWAY_PREFIX SOCKET_PATH
     export MOVIEPILOT_NO_AUTH=1 MOVIEPILOT_STDIO_LOG_FILE="${LOG_FILE}"
+    export MOVIEPILOT_STDIO_LOG_MAX_BYTES=5242880 MOVIEPILOT_STDIO_LOG_BACKUP_COUNT=7
     export MOVIEPILOT_ALLOWED_PATHS_FILE="$ACCESS_PATHS_FILE"
     export CONFIG_DIR MOVIEPILOT_CONFIG="$CONFIG_DIR"
     export MOVIEPILOT_LOG_FILE="$LOG_FILE" MOVIEPILOT_PID_FILE="$PID_FILE"
