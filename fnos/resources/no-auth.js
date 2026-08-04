@@ -3,20 +3,15 @@
     .replaceAll('+', '-')
     .replaceAll('/', '_')
     .replaceAll('=', '')
+  const readStored = key => {
+    try {
+      return JSON.parse(localStorage.getItem(key) || 'null')
+    } catch (_) {
+      return null
+    }
+  }
   const now = Math.floor(Date.now() / 1000)
-  const fallbackToken = [
-    encode({ alg: 'none', typ: 'JWT' }),
-    encode({
-      sub: '0',
-      username: 'admin',
-      super_user: true,
-      level: 0,
-      purpose: 'authentication',
-      iat: now,
-      exp: now + 315360000,
-    }),
-    'fnos',
-  ].join('.')
+  const previousUser = readStored('user')
 
   let session = null
   try {
@@ -29,8 +24,24 @@
     }
   } catch (_) {}
 
-  const level = Number(session?.level) || 0
-  const token = session?.access_token || fallbackToken
+  const sessionLevel = session ? Number(session.level) : NaN
+  const previousLevel = Number(previousUser?.level)
+  const level = Number.isFinite(sessionLevel)
+    ? sessionLevel
+    : (Number.isFinite(previousLevel) ? previousLevel : 0)
+  const token = [
+    encode({ alg: 'none', typ: 'JWT' }),
+    encode({
+      sub: '0',
+      username: 'admin',
+      super_user: true,
+      level,
+      purpose: 'authentication',
+      iat: now,
+      exp: now + 315360000,
+    }),
+    'fnos',
+  ].join('.')
 
   localStorage.setItem('auth', JSON.stringify({
     token,
@@ -41,9 +52,9 @@
     superUser: true,
     userID: 0,
     userName: 'admin',
-    avatar: session?.avatar || '',
+    avatar: session?.avatar || previousUser?.avatar || '',
     level,
-    permissions: session?.permissions || {},
-    wizard: Boolean(session?.wizard),
+    permissions: session?.permissions || previousUser?.permissions || {},
+    wizard: session ? Boolean(session.wizard) : Boolean(previousUser?.wizard),
   }))
 })()

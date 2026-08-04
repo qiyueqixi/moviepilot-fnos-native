@@ -4,13 +4,13 @@
 
 ## 文件说明
 
-- `moviepilot_2.14.6-35_x86.fpk`：完整离线安装包。运行环境已经内置，推荐大多数用户使用。
-- `moviepilot_2.14.6-35_x86_installer.fpk`：拆分版安装包，不含 Python 运行环境。
+- `moviepilot_2.14.6-36_x86.fpk`：完整离线安装包。运行环境已经内置，推荐大多数用户使用。
+- `moviepilot_2.14.6-36_x86_installer.fpk`：拆分版安装包，不含 Python 运行环境。
 - `moviepilot-runtime-x86-python311.tgz`：拆分版所需的数据包。
 
 ## 完整离线包安装
 
-1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-35_x86.fpk`。
+1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.14.6-36_x86.fpk`。
 2. 按安装向导完成安装，然后启动 MoviePilot。
 3. 从桌面打开 MoviePilot。应用已启用免登录模式，无需设置或输入登录密码。
 
@@ -22,7 +22,7 @@
 
 拆分包适合希望减少 FPK 安装包体积的用户。必须先上传运行时数据包，再启动应用。
 
-1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-35_x86_installer.fpk`。
+1. 在 fnOS 应用中心手动安装 `moviepilot_2.14.6-36_x86_installer.fpk`。
 2. 安装完成后先不要启动 MoviePilot。
 3. 打开 fnOS 的“应用文件”，进入 `moviepilot`，再进入 `runtime` 目录。
 4. 将 `moviepilot-runtime-x86-python311.tgz` 上传到这个目录，文件名不要修改。

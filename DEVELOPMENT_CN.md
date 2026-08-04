@@ -151,6 +151,8 @@ moviepilot/runtime
 
 `no-auth.js` 不能把等级固定为 `0` 或 `99`。固定为 `0` 会在每次重新打开页面时覆盖浏览器状态，使已完成认证的机器再次显示“用户认证”；固定为 `99` 则会隐藏未认证机器的认证入口。站点认证参数保存在当前机器的 `user.db`，前端只同步后端计算出的等级。
 
+登录接口返回的普通访问令牌默认只有 8 天有效期，免登录前端不能直接持久保存该令牌，否则长期打开后仍会被前端判定为过期。`no-auth.js` 应使用后端返回的真实等级生成长期本地令牌；后端请求瞬时失败时沿用已有等级，只有后端成功返回新等级时才覆盖。后端在 `MOVIEPILOT_NO_AUTH=1` 下仍按当前 `SitesHelper().auth_level` 执行权限判断，前端令牌等级只用于界面状态。
+
 因此从 Docker 迁移旧配置后，不需要修改数据库中的管理员密码。只要使用本 FPK 的启动脚本，旧账户验证不会阻止访问。
 
 升级上游 MoviePilot 时，必须检查 `patch-native.py` 中的替换目标是否仍存在。当前脚本基于文本替换，上游文件结构变化可能导致补丁没有完整应用。
@@ -234,15 +236,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-35 --platform x86
-python build-fpk.py --version 2.14.6-35 --platform arm
+python build-fpk.py --version 2.14.6-36 --platform x86
+python build-fpk.py --version 2.14.6-36 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-35 --platform x86 --without-runtime --output-name moviepilot_2.14.6-35_x86_installer.fpk
-python build-fpk.py --version 2.14.6-35 --platform arm --without-runtime --output-name moviepilot_2.14.6-35_arm_installer.fpk
+python build-fpk.py --version 2.14.6-36 --platform x86 --without-runtime --output-name moviepilot_2.14.6-36_x86_installer.fpk
+python build-fpk.py --version 2.14.6-36 --platform arm --without-runtime --output-name moviepilot_2.14.6-36_arm_installer.fpk
 ```
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
@@ -272,7 +274,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-35_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-36_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
