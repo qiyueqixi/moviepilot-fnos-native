@@ -249,6 +249,8 @@ python build-fpk.py --version 2.14.6-36 --platform arm --without-runtime --outpu
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
 
+`manifest` 中的 `maintainer` 表示 MoviePilot 上游维护者，`distributor` 表示 fnOS FPK 发布者。自建发布包应保留 `maintainer=jxxghp`，并把 `distributor` 与 `distributor_url` 设置为实际发布者及其仓库，不能沿用模板项目的发布者信息。
+
 - 读取 `app.tgz`。
 - 替换对应架构的 `sites`、文件权限适配、免登录和 Node 网关文件。
 - 加入 fnOS UI。
