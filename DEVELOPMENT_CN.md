@@ -236,15 +236,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-36 --platform x86
-python build-fpk.py --version 2.14.6-36 --platform arm
+python build-fpk.py --version 2.14.6-37 --platform x86
+python build-fpk.py --version 2.14.6-37 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-36 --platform x86 --without-runtime --output-name moviepilot_2.14.6-36_x86_installer.fpk
-python build-fpk.py --version 2.14.6-36 --platform arm --without-runtime --output-name moviepilot_2.14.6-36_arm_installer.fpk
+python build-fpk.py --version 2.14.6-37 --platform x86 --without-runtime --output-name moviepilot_2.14.6-37_x86_installer.fpk
+python build-fpk.py --version 2.14.6-37 --platform arm --without-runtime --output-name moviepilot_2.14.6-37_arm_installer.fpk
 ```
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
@@ -276,7 +276,7 @@ python scripts/build-arm-runtime.py --help
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-36_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-37_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import re
 import tarfile
 import tempfile
 from pathlib import Path
@@ -140,6 +141,32 @@ def patch_bangumi_proxy(data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
+def patch_frontend_index(data: bytes) -> bytes:
+    """Repair known syntax damage in the MoviePilot frontend release."""
+    text = data.decode("utf-8").replace("\r\n", "\n")
+    for marker in (
+        "const launchThemePalettes = {",
+        "if ('caches' in window) {",
+        "function syncThemeFavicon(primaryColor) {",
+        "revealOriginalLoadingLogo()",
+        "const storedLoaderColor =",
+        "function syncInitialViewport(force) {",
+    ):
+        text = re.sub(
+            rf"(?m)^([ \t]*//[^\r\n]*?)([ \t]+{re.escape(marker)})$",
+            r"\1\n\2",
+            text,
+        )
+    text = re.sub(r"(?m)^([ \t]*//[^\r\n]*?)([ \t]+\})$", r"\1\n\2", text)
+    text = re.sub(
+        r"(?m)^([ \t]*console\.log\('\[VersionChecker\].*?)(?<!')\)$",
+        r"\1')",
+        text,
+    )
+    text = re.sub(r"(?m)^([ \t]*text:[ \t]*'[^'\r\n]*)(,)$", r"\1'\2", text)
+    return text.encode("utf-8")
+
+
 def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
     """Normalize permissions and place desktop UI and required resources in app.tgz."""
     output = Path(tempfile.mkstemp(suffix=".tgz")[1])
@@ -179,6 +206,8 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
                     data = patch_no_auth_level(member.name, data)
                 elif member.name == "app/modules/bangumi/bangumi.py":
                     data = patch_bangumi_proxy(data)
+                elif member.name == "public/index.html":
+                    data = patch_frontend_index(data)
                 member.size = len(data)
                 target.addfile(member, io.BytesIO(data))
             else:

@@ -33,9 +33,10 @@ for item in source.iterdir():
     item.rename(Path(target) / item.name)
 source.rmdir()
 PY
+python3 "$SCRIPT_DIR/patch-frontend.py" "$work/app/public/index.html"
 cp "$ROOT/fnos/service.js" "$work/app/public/service.js"
 cp "$ROOT/fnos/package.json" "$work/app/public/package.json"
-cp "$ROOT/scripts/apps/moviepilot/no-auth.js" "$work/app/public/no-auth.js"
+cp "$ROOT/fnos/resources/no-auth.js" "$work/app/public/no-auth.js"
 cp -a "$ROOT/fnos/ui" "$work/app/ui"
 python3 - "$work/app/public/index.html" <<'PY'
 import sys
