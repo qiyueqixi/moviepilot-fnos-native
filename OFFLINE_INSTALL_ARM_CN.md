@@ -26,6 +26,8 @@
 4. 上传 `moviepilot-runtime-arm-python311.tgz`，不要修改文件名。
 5. 回到应用中心启动 MoviePilot。首次启动会自动解压运行环境。
 
+升级拆分包时，运行时也必须从同一 Release 下载并重新上传。应用会核对 SHA-256，拒绝不匹配的旧依赖；完整包已经内置匹配的运行时。
+
 ## 应用文件
 
 - `moviepilot/config`：配置、数据库和令牌等重要数据。

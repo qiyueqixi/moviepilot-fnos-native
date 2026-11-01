@@ -19,7 +19,7 @@ python3 -m venv "$work/venv"
 "$work/venv/bin/python" -m compileall -q "$source_dir/app"
 "$work/venv/bin/python" -m pip freeze > "$work/venv/native-requirements.txt"
 python3 - "$work/venv" "$source_dir" "$platform" <<'PY'
-import hashlib, json, platform, sys
+import hashlib, json, platform, subprocess, sys
 from pathlib import Path
 venv, source = map(Path, sys.argv[1:3])
 files = sorted(source.glob('requirements*'))
@@ -38,6 +38,7 @@ for path in (venv / 'bin').iterdir():
         first, separator, rest = data.partition(b'\n')
         if first.startswith(b'#!') and str(venv).encode() in first:
             path.write_bytes(launcher.encode() + rest)
+subprocess.run([str(venv / 'bin/pip'), '--version'], check=True)
 # fnOS supplies /usr/bin/python3. Do not ship the build container's interpreter.
 for name in ['python', 'python3', 'python3.11']:
     path = venv / 'bin' / name

@@ -13,6 +13,15 @@ def replace_checked(text: str, needle: str, replacement: str) -> str:
 
 root = Path(sys.argv[1])
 
+# Python 3.12 allows backslashes inside f-string expressions; fnOS uses 3.11.
+smb = root / "app/modules/filemanager/storages/smb.py"
+text = smb.read_text(encoding="utf-8")
+needle = '''            return f"{self._server_path}\\\\{path_str.replace('/', '\\\\')}"'''
+replacement = '''            normalized_path = path_str.replace('/', '\\\\')
+            return f"{self._server_path}\\\\{normalized_path}"'''
+text = replace_checked(text, needle, replacement)
+smb.write_text(text, encoding="utf-8")
+
 security = root / "app/core/security.py"
 text = security.read_text(encoding="utf-8")
 needle = "    if jwt_token:\n"
