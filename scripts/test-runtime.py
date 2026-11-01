@@ -77,7 +77,7 @@ class RuntimeTests(unittest.TestCase):
             (config / 'app.env').write_bytes(original)
             (var / '.proxy').write_text('http://legacy-setting:8080')
             env.update(TRIM_DATA_SHARE_PATHS=str(config), TRIM_UID='0', TRIM_GID='0',
-                       wizard_proxy='http://wizard-setting:8080', wizard_clear_app_proxy='true',
+                       wizard_proxy='', wizard_clear_app_proxy='false',
                        HTTPS_PROXY='http://inherited-setting:8080')
             command = ('source "$1"; prepare_system_log() { :; }; chown() { :; }; '
                        'for hook in service_postinst service_postconfig service_postupgrade; do "$hook"; done; '
@@ -88,6 +88,34 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual((config / 'app.env').read_bytes(), original)
             self.assertEqual((var / '.proxy').read_text(), 'http://legacy-setting:8080')
             self.assertEqual(result.stdout, env['HTTPS_PROXY'])
+
+    def test_wizard_prefills_native_proxy_and_explicit_clear(self):
+        with tempfile.TemporaryDirectory() as temp:
+            app, var, archive, digest, env = self.setup_runtime(temp)
+            archive.unlink()
+            config = Path(temp) / 'config'
+            config.mkdir()
+            (config / 'app.env').write_text("PROXY_HOST='http://old:8080'\nOTHER=value\n")
+            env.update(TRIM_DATA_SHARE_PATHS=str(config), TRIM_UID='0', TRIM_GID='0',
+                       wizard_proxy='http://wizard-setting:8080', wizard_clear_app_proxy='false',
+                       HTTPS_PROXY='http://inherited-setting:8080')
+            script = ('source "$1"; prepare_system_log() { :; }; chown() { :; }; '
+                      '"$2"; printf "%s" "$HTTPS_PROXY"')
+            for hook in ['service_postinst', 'service_postconfig', 'service_postupgrade']:
+                (config / 'app.env').write_text("PROXY_HOST='http://old:8080'\nOTHER=value\n")
+                result = subprocess.run(['bash', '-c', script, '--',
+                                         str(HELPER.with_name('service-setup')), hook],
+                                        env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, env['HTTPS_PROXY'])
+                self.assertEqual((config / 'app.env').read_text(),
+                                 "PROXY_HOST='http://wizard-setting:8080'\nOTHER=value\n")
+            env.update(wizard_proxy='', wizard_clear_app_proxy='true')
+            result = subprocess.run(['bash', '-c', script, '--',
+                                     str(HELPER.with_name('service-setup')), 'service_postconfig'],
+                                    env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((config / 'app.env').read_text(), "PROXY_HOST=''\nOTHER=value\n")
 
 
 if __name__ == '__main__':

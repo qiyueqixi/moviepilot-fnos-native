@@ -94,10 +94,10 @@ fnOS 调用 `fnos/cmd/*_init` 和 `*_callback`，这些入口统一加载 `insta
 | 阶段 | 主要行为 |
 | --- | --- |
 | 安装前 | 校验环境，初始化应用变量 |
-| 安装后 | 解压内置运行时，修正目录所有者 |
+| 安装后 | 按用户填写预设 MP 代理，解压内置运行时，修正目录所有者 |
 | 启动 | 解析应用文件目录，安装拆分运行时，启动 Python 和 Node |
 | 停止 | 先正常终止进程，超时后强制终止，删除 PID 和 Socket |
-| 配置后 | 保留 MoviePilot 自身设置 |
+| 配置后 | 按用户填写更新 MP 原生代理设置，留空保留 |
 | 升级前 | 停止服务并保留数据 |
 | 升级后 | 修正所有权，恢复运行时并重新初始化 |
 | 卸载后 | 根据向导选择保留数据或删除所有应用数据 |
@@ -126,9 +126,9 @@ moviepilot/runtime
 /vol1/@appshare/moviepilot/runtime
 ```
 
-应用私有运行数据位于 `${TRIM_PKGVAR}`，常见路径为 `/vol1/@appdata/moviepilot`。其中包括虚拟环境、PID 和授权路径快照。代理统一使用 MoviePilot 上游默认逻辑，由 MP 自身配置及上级网络规则决定。FPK 向导不提供代理项，生命周期不写入、迁移或清空 `PROXY_HOST`，启动脚本不设置或清除代理环境变量。
+应用私有运行数据位于 `${TRIM_PKGVAR}`，常见路径为 `/vol1/@appdata/moviepilot`。其中包括虚拟环境、PID 和授权路径快照。代理统一使用 MoviePilot 上游默认逻辑，由 MP 自身配置及上级网络规则决定。FPK 向导保留可选代理项，仅将用户填写的地址预填到原生 `PROXY_HOST`。留空保留已有配置；配置页明确选择清除时才写入空值。启动脚本不设置或清除代理环境变量，不自动迁移历史 `.proxy`。
 
-不要增加 Bangumi 等模块的请求器代理补丁。构建会记录上游配置、HTTP 请求工具和 Bangumi 源码的 SHA-256，最终校验其内容保持上游原样。历史向导写入的配置属于现有 MP 配置，升级保留，用户在 MP 内调整。
+不要增加 Bangumi 等模块的请求器代理补丁。构建会记录上游配置、HTTP 请求工具和 Bangumi 源码的 SHA-256，最终校验其内容保持上游原样。向导和 MP 界面管理同一份原生配置，不设置第二套代理规则。
 
 媒体库、下载目录等额外目录由用户在 fnOS 应用设置中授权。fnOS 通过 `TRIM_DATA_ACCESSIBLE_PATHS` 注入授权列表；启动脚本将其写入 `.accessible_paths`，`fnos/resources/local.py` 在列目录及复制、移动、删除、链接等每个操作前再次检查路径是否位于授权根目录内。
 
@@ -232,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.15.6-40 --platform x86
-python build-fpk.py --version 2.15.6-40 --platform arm
+python build-fpk.py --version 2.15.6-41 --platform x86
+python build-fpk.py --version 2.15.6-41 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.15.6-40 --platform x86 --without-runtime --output-name moviepilot_2.15.6-40_x86_installer.fpk
-python build-fpk.py --version 2.15.6-40 --platform arm --without-runtime --output-name moviepilot_2.15.6-40_arm_installer.fpk
+python build-fpk.py --version 2.15.6-41 --platform x86 --without-runtime --output-name moviepilot_2.15.6-41_x86_installer.fpk
+python build-fpk.py --version 2.15.6-41 --platform arm --without-runtime --output-name moviepilot_2.15.6-41_arm_installer.fpk
 ```
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
@@ -276,7 +276,7 @@ python scripts/test-runtime.py # 运行时替换测试需要 Linux / Bash
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.15.6-40_x86.fpk
+tar -tzf dist/moviepilot_2.15.6-41_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -301,7 +301,7 @@ file fnos/resources/node-linux-arm64
 - 配置、日志、导出和运行时目录出现在“应用文件”。
 - 未授权系统目录不会出现在 MoviePilot 文件管理器，也不能通过手工路径访问。
 - fnOS 新增授权目录后，重启应用即可访问。
-- 安装、升级和配置不会改写 MP 代理设置；请求行为沿用上游默认逻辑。
+- 向导填写可预设 MP 原生代理，留空保留已有配置，显式清除生效；请求行为沿用上游默认逻辑。
 - 保留数据升级后配置仍在。
 - 卸载选择“保留数据”后可恢复。
 - 卸载选择“删除全部应用数据”后不残留 MoviePilot 应用目录。
@@ -344,7 +344,7 @@ curl -I http://127.0.0.1:3001/api/v1/system/global?token=moviepilot
 - 页面资源 404：检查统一网关前缀、`<base>` 注入和 `/fnos-assets` 路径转换。
 - 应用文件为空：检查 `fnos/config/resource` 是否打入 FPK，以及 fnOS 是否注入 `TRIM_DATA_SHARE_PATHS`。
 - 能看到未授权目录：检查 `.accessible_paths` 和 `local.py` 是否被正确打入 `app.tgz`。
-- 局域网下载器连接超时：检查 MP 自身代理设置及上级代理规则。FPK 不改写代理地址或代理环境变量。
+- 局域网下载器连接超时：检查 MP 自身代理设置及上级代理规则。向导只写入用户填写的 MP 原生代理地址，FPK 不改写代理环境变量。
 
 ## 14. 自定义启动背景
 
@@ -405,9 +405,9 @@ Release 至少应包含：
 
 ### 17.1 代理沿用上游默认行为
 
-FPK 不增加独立代理配置层，也不修改 `settings.PROXY`、网络请求工具或 Bangumi 的代理选择逻辑。需要代理的请求由 MP 原生设置和上级网络规则决定。
+向导仅作为 MP 原生 `PROXY_HOST` 的便捷输入入口，不增加独立代理规则，也不修改 `settings.PROXY`、网络请求工具或 Bangumi 的代理选择逻辑。需要代理的请求由 MP 原生设置和上级网络规则决定。
 
-升级保留现有 `app.env`，不自动迁移历史 `.proxy`，也不清空已有设置。历史向导写入的 `PROXY_HOST` 可在 MP 内调整。检查实际页面请求时，应同时核对 MP 原生配置和上级代理规则。
+向导留空时保留现有 `app.env`；填入地址时只更新 `PROXY_HOST`，明确选择清除时置空。不自动迁移历史 `.proxy`。`PROXY_HOST` 也可在 MP 内调整。检查实际页面请求时，应同时核对 MP 原生配置和上级代理规则。
 
 ### 17.2 首次资源更新可能让后端主动退出
 

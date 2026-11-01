@@ -3,6 +3,6 @@
   "frontend_repository": "jxxghp/MoviePilot-Frontend",
   "supported_major": 2,
   "python": "3.11",
-  "native_revision": 40,
+  "native_revision": 41,
   "bootstrap_tag": "v2.14.6-fnos.37"
 }
