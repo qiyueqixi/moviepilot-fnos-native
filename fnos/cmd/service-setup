@@ -3,6 +3,7 @@ set -e
 
 LEGACY_PROXY_FILE="${TRIM_PKGVAR}/.proxy"
 VENV="${TRIM_PKGVAR}/venv"
+. "$(dirname "${BASH_SOURCE[0]}")/runtime"
 
 prepare_system_log() {
     local system_log="/var/log/apps/${TRIM_APPNAME:-moviepilot}.log"
@@ -72,10 +73,7 @@ service_postinst() {
     rm -f "${TRIM_PKGVAR}/.process-proxy"
     local bundled_runtime="${TRIM_APPDEST}/runtime/venv.tgz"
     if [ -f "$bundled_runtime" ]; then
-        rm -rf "$VENV"
-        tar -xzf "$bundled_runtime" -C "${TRIM_PKGVAR}"
-        chmod -R u+rwX,go+rX "$VENV" 2>/dev/null || true
-        [ -x "${VENV}/bin/python" ] || { install_log "离线运行时解压失败"; return 1; }
+        runtime_install_archive "$bundled_runtime" || { install_log "离线运行时校验或解压失败"; return 1; }
     fi
     mkdir -p "${TRIM_PKGVAR}/core"
     prepare_system_log

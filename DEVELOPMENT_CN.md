@@ -151,6 +151,8 @@ moviepilot/runtime
 
 `no-auth.js` 不能把等级固定为 `0` 或 `99`。固定为 `0` 会在每次重新打开页面时覆盖浏览器状态，使已完成认证的机器再次显示“用户认证”；固定为 `99` 则会隐藏未认证机器的认证入口。站点认证参数保存在当前机器的 `user.db`，前端只同步后端计算出的等级。
 
+飞牛网关会先校验请求的登录令牌。MoviePilot 的 Bearer 令牌会与网关认证冲突，使接口以 HTTP 200 返回纯文本 `invalid token`；前端把这个字符串按对象遍历后，站点下拉框就会出现 13 个 `[object Object]`。`no-auth.js` 因此在自身 API 路径范围内过滤 XMLHttpRequest 和 fetch 的 `Authorization` 请求头，依靠浏览器携带的飞牛会话 Cookie 通过网关。其他来源、其他应用路径的请求不受影响；后端仍执行本应用的免登录和站点等级逻辑。
+
 登录接口返回的普通访问令牌默认只有 8 天有效期，免登录前端不能直接持久保存该令牌，否则长期打开后仍会被前端判定为过期。`no-auth.js` 应使用后端返回的真实等级生成长期本地令牌；后端请求瞬时失败时沿用已有等级，只有后端成功返回新等级时才覆盖。后端在 `MOVIEPILOT_NO_AUTH=1` 下仍按当前 `SitesHelper().auth_level` 执行权限判断，前端令牌等级只用于界面状态。
 
 因此从 Docker 迁移旧配置后，不需要修改数据库中的管理员密码。只要使用本 FPK 的启动脚本，旧账户验证不会阻止访问。
@@ -188,7 +190,7 @@ VERSION=2.14.6 bash scripts/apps/moviepilot/build.sh
 
 1. 下载对应标签的 MoviePilot 后端源码。
 2. 执行 `patch-native.py` 加入免登录逻辑。
-3. 下载同版本 MoviePilot-Frontend 的 `dist.zip`。
+3. 从后端 `version.py` 读取其要求的前端版本，下载对应 MoviePilot-Frontend 的 `dist.zip`。
 4. 注入 `no-auth.js`。
 5. 安装 Node 网关依赖和 x86 Node.js。
 6. 生成仓库根目录下的 `app.tgz`。
@@ -236,15 +238,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-37 --platform x86
-python build-fpk.py --version 2.14.6-37 --platform arm
+python build-fpk.py --version 2.14.6-39 --platform x86
+python build-fpk.py --version 2.14.6-39 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-37 --platform x86 --without-runtime --output-name moviepilot_2.14.6-37_x86_installer.fpk
-python build-fpk.py --version 2.14.6-37 --platform arm --without-runtime --output-name moviepilot_2.14.6-37_arm_installer.fpk
+python build-fpk.py --version 2.14.6-39 --platform x86 --without-runtime --output-name moviepilot_2.14.6-39_x86_installer.fpk
+python build-fpk.py --version 2.14.6-39 --platform arm --without-runtime --output-name moviepilot_2.14.6-39_arm_installer.fpk
 ```
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
@@ -271,12 +273,16 @@ python -m json.tool fnos/config/resource > $null
 python -m json.tool fnos/ui/config > $null
 python build-fpk.py --help
 python scripts/build-arm-runtime.py --help
+node --test scripts/apps/moviepilot/test-no-auth.cjs
+python scripts/apps/moviepilot/test-frontend.py
+python scripts/test-upstream.py
+python scripts/test-runtime.py # 运行时替换测试需要 Linux / Bash
 ```
 
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-37_x86.fpk
+tar -tzf dist/moviepilot_2.14.6-39_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -361,11 +367,15 @@ loading-background.png
 
 ## 15. 升级上游 MoviePilot
 
-建议按以下顺序：
+日常更新使用 [自动构建说明](UPDATES_CN.md) 中的 GitHub Actions 工作流。每 6 小时检测 `upstream.json` 指定的兼容系列，在 x86/ARM 构建机上重新解析依赖，校验补丁及全部 FPK 后创建私有 Release 草稿，供手动升级。当前追踪 v2 / Python 3.11，v3 / Python 3.14 必须单独迁移。
+
+`scripts/build-runtime.sh` 从目标源码的依赖文件生成新运行时，`build-fpk.py` 将其 SHA-256 写入包内 `runtime/expected.json`。完整包和拆分包都需要提供本次运行时作为构建输入。`fnos/cmd/runtime` 负责匹配、暂存解压和替换；拆分包升级必须上传同一 Release 的运行时，不能沿用不匹配的旧依赖。
+
+人工维护适配时按以下顺序：
 
 1. 更新目标 MoviePilot 版本并重新生成 `app.tgz`。
 2. 检查 `patch-native.py` 的三个后端补丁是否实际生效。
-3. 确认前后端版本一致。
+3. 确认前端版本符合后端 `FRONTEND_VERSION` 声明。
 4. 确认新版本依赖已进入 x86 和 ARM 运行时。
 5. 获取同版本、同 ABI、同架构的官方 `sites`。
 6. 分别构建完整包和拆分包。

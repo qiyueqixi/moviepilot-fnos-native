@@ -37,6 +37,7 @@ SYSTEM_LOG_FILE="/var/log/apps/${TRIM_APPNAME:-moviepilot}.log"
 ACCESS_PATHS_FILE="${VAR_DIR}/.accessible_paths"
 SOCKET_PATH="${APP_DIR}/moviepilot.sock"
 GATEWAY_PREFIX="/app/moviepilot"
+. "$(dirname "${BASH_SOURCE[0]}")/runtime"
 
 pid_running() {
     [ -s "$1" ] || return 1
@@ -69,7 +70,7 @@ install_runtime() {
     if [ -d "$VENV" ]; then
         chmod -R u+rwX,go+rX "$VENV" 2>/dev/null || true
     fi
-    [ -r "${VENV}/pyvenv.cfg" ] && [ -x "${VENV}/bin/python" ] && return 0
+    runtime_is_current && return 0
     local archive=""
     local runtime_name="moviepilot-runtime-x86-python311.tgz"
     case "$(uname -m 2>/dev/null)" in
@@ -84,10 +85,7 @@ install_runtime() {
         fi
     done
     [ -n "$archive" ] || return 1
-    rm -rf "$VENV"
-    tar -xzf "$archive" -C "$VAR_DIR" || return 1
-    chmod -R u+rwX,go+rX "$VENV" 2>/dev/null || true
-    [ -r "${VENV}/pyvenv.cfg" ] && [ -x "${VENV}/bin/python" ]
+    runtime_install_archive "$archive"
 }
 
 case "${1:-}" in

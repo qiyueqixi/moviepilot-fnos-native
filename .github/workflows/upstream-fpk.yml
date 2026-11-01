@@ -1,0 +1,157 @@
+name: Build upstream FPK
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Upstream version (empty = latest supported stable release)'
+        type: string
+      force:
+        description: 'Rebuild even if draft assets already exist'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-fpk
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      version: ${{ steps.plan.outputs.version }}
+      fpk_version: ${{ steps.plan.outputs.fpk_version }}
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Native adapter regression tests
+        run: |
+          node --test scripts/apps/moviepilot/test-no-auth.cjs
+          python scripts/apps/moviepilot/test-frontend.py
+          python scripts/test-upstream.py
+          python scripts/test-runtime.py
+          for script in scripts/build-runtime.sh fnos/cmd/runtime fnos/cmd/main fnos/cmd/service-setup scripts/apps/moviepilot/build.sh; do
+            bash -n "$script"
+          done
+      - name: Resolve new upstream release
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          FORCE_BUILD: ${{ inputs.force }}
+        run: |
+          args=()
+          [ -z "$REQUESTED_VERSION" ] || args+=(--version "$REQUESTED_VERSION")
+          [ "$FORCE_BUILD" != true ] || args+=(--force)
+          python scripts/upstream.py check "${args[@]}"
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x86
+            runner: ubuntu-22.04
+          - platform: arm
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.check.outputs.version }}
+      FPK_VERSION: ${{ needs.check.outputs.fpk_version }}
+      PLATFORM: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Download verified architecture resources
+        run: python scripts/upstream.py bootstrap --platform "$PLATFORM"
+      - name: Fetch upstream source and resolve its frontend version
+        run: python scripts/upstream.py prepare --version "$VERSION"
+      - name: Apply and verify native patches
+        run: |
+          python scripts/apps/moviepilot/patch-native.py .tmp/auto-source
+          python scripts/apps/moviepilot/patch-native.py .tmp/auto-source
+      - name: Build dependency runtime for this architecture
+        # Docker is a CI build tool only; the resulting FPK runs natively on fnOS.
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace python:3.11-slim-bookworm \
+            bash -c 'set -e; apt-get update; apt-get install -y --no-install-recommends build-essential; bash scripts/build-runtime.sh /workspace/.tmp/auto-source "$1"' -- "$PLATFORM"
+          sudo chown -R "$(id -u):$(id -g)" fnos/runtime .tmp/auto-source
+      - name: Assemble upstream application and FPK files
+        env:
+          MOVIEPILOT_SOURCE_DIR: ${{ github.workspace }}/.tmp/auto-source
+        run: |
+          bash scripts/apps/moviepilot/build.sh
+          python build-fpk.py --version "$FPK_VERSION" --platform "$PLATFORM"
+          python build-fpk.py --version "$FPK_VERSION" --platform "$PLATFORM" --without-runtime \
+            --output-name "moviepilot_${FPK_VERSION}_${PLATFORM}_installer.fpk"
+          runtime=venv-runtime.tgz
+          [ "$PLATFORM" = x86 ] || runtime=venv-runtime-arm.tgz
+          cp "fnos/runtime/$runtime" "dist/moviepilot-runtime-${PLATFORM}-python311.tgz"
+          cp .tmp/auto-source/native-upstream.json "dist/upstream-${PLATFORM}.json"
+          python scripts/upstream.py verify --version "$FPK_VERSION" --platform "$PLATFORM"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fpk-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FPK_VERSION: ${{ needs.check.outputs.fpk_version }}
+      RELEASE_TAG: ${{ needs.check.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fpk-*
+          path: dist
+          merge-multiple: true
+      - name: Verify complete release set
+        run: python scripts/upstream.py verify --version "$FPK_VERSION"
+      - name: Generate version-specific install instructions
+        run: python scripts/upstream.py notes --version "$FPK_VERSION"
+      - name: Create or resume draft release
+        run: |
+          if gh release view "$RELEASE_TAG" --json isDraft > .tmp-release.json 2>/dev/null; then
+            python -c 'import json; assert json.load(open(".tmp-release.json"))["isDraft"], "Refusing to overwrite a published release"'
+            gh release edit "$RELEASE_TAG" --notes-file dist/RELEASE_NOTES.md
+          else
+            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" \
+              --title "MoviePilot fnOS $FPK_VERSION" --notes-file dist/RELEASE_NOTES.md
+          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber
+          printf '已生成 [FPK Release 草稿](https://github.com/%s/releases/tag/%s)，下载对应架构的完整包，在飞牛应用中心手动升级。\n' "$GH_REPO" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"

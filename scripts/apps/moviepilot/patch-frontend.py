@@ -24,7 +24,7 @@ def patch_index(path: Path) -> bool:
         "function syncInitialViewport(force) {",
     ):
         text = re.sub(
-            rf"(?m)^([ \t]*//[^\r\n]*?)([ \t]+{re.escape(marker)})$",
+            rf"(?m)^([ \t]*//[^\r\n]*?)([ \t]+{re.escape(marker)}[^\r\n]*)$",
             r"\1\n\2",
             text,
         )

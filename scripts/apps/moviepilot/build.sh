@@ -11,13 +11,29 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/source" "$work/app" "$work/fnos"
-curl -fsSL "https://github.com/jxxghp/MoviePilot/archive/refs/tags/v${VERSION}.tar.gz" -o "$work/moviepilot.tgz"
-tar xzf "$work/moviepilot.tgz" --strip-components=1 -C "$work/source"
+if [ -n "${MOVIEPILOT_SOURCE_DIR:-}" ]; then
+  cp -a "$MOVIEPILOT_SOURCE_DIR/." "$work/source/"
+else
+  curl -fsSL --retry 3 "https://github.com/jxxghp/MoviePilot/archive/refs/tags/v${VERSION}.tar.gz" -o "$work/moviepilot.tgz"
+  tar xzf "$work/moviepilot.tgz" --strip-components=1 -C "$work/source"
+fi
+frontend_version="$(python3 - "$work/source" "$VERSION" "$ROOT" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(sys.argv[3]) / 'scripts'))
+from upstream import source_versions
+backend, frontend = source_versions(Path(sys.argv[1]))
+if backend != sys.argv[2]:
+    raise SystemExit(f'Source version mismatch: {backend} != {sys.argv[2]}')
+print(frontend)
+PY
+)"
 python3 "$SCRIPT_DIR/patch-native.py" "$work/source"
 cp -a "$work/source/." "$work/app/"
 rm -rf "$work/app/docker"
 mkdir -p "$work/app/public"
-frontend_url="$(curl -fsSL "https://api.github.com/repos/jxxghp/MoviePilot-Frontend/releases/tags/v${VERSION}" | jq -r '.assets[] | select(.name == "dist.zip") | .browser_download_url')"
+frontend_url="$(curl -fsSL --retry 3 "https://api.github.com/repos/jxxghp/MoviePilot-Frontend/releases/tags/v${frontend_version}" | jq -r '.assets[] | select(.name == "dist.zip") | .browser_download_url')"
+[ -n "$frontend_url" ] && [ "$frontend_url" != null ] || { echo "Missing frontend release v${frontend_version}" >&2; exit 1; }
 curl -fsSL "$frontend_url" -o "$work/frontend.zip"
 python3 - "$work/frontend.zip" "$work/app/public" <<'PY'
 import sys
@@ -34,7 +50,7 @@ for item in source.iterdir():
 source.rmdir()
 PY
 python3 "$SCRIPT_DIR/patch-frontend.py" "$work/app/public/index.html"
-cp "$ROOT/fnos/service.js" "$work/app/public/service.js"
+cp "$ROOT/fnos/resources/service.js" "$work/app/public/service.js"
 cp "$ROOT/fnos/package.json" "$work/app/public/package.json"
 cp "$ROOT/fnos/resources/no-auth.js" "$work/app/public/no-auth.js"
 cp -a "$ROOT/fnos/ui" "$work/app/ui"

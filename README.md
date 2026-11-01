@@ -24,11 +24,13 @@
 
 ## 构建
 
+上游更新由 GitHub Actions 每 6 小时检测，兼容版本自动生成 x86/ARM 的 FPK Release 草稿，再由用户手动升级。完整流程和当前兼容范围见 [UPDATES_CN.md](UPDATES_CN.md)。
+
 准备 MoviePilot 的 `app.tgz`、对应架构的 `sites` 官方资源、Node 二进制和 Python 3.11 运行时后执行：
 
 ```powershell
-python build-fpk.py --version 2.14.6-37 --platform x86
-python build-fpk.py --version 2.14.6-37 --platform arm
+python build-fpk.py --version 2.14.6-39 --platform x86
+python build-fpk.py --version 2.14.6-39 --platform arm
 ```
 
 ARM Python 运行时可由已经验证的 x86 运行时和同版本 ARM64 wheels 生成：

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import io
+import json
 import re
 import tarfile
 import tempfile
@@ -153,7 +155,7 @@ def patch_frontend_index(data: bytes) -> bytes:
         "function syncInitialViewport(force) {",
     ):
         text = re.sub(
-            rf"(?m)^([ \t]*//[^\r\n]*?)([ \t]+{re.escape(marker)})$",
+            rf"(?m)^([ \t]*//[^\r\n]*?)([ \t]+{re.escape(marker)}[^\r\n]*)$",
             r"\1\n\2",
             text,
         )
@@ -186,6 +188,13 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
         resources["public/node/bin/node"] = resource_dir / node_resource
     if include_runtime:
         resources["runtime/venv.tgz"] = FNOS / "runtime" / platform_resources["runtime"]
+    runtime_path = FNOS / "runtime" / platform_resources["runtime"]
+    if not runtime_path.is_file():
+        raise SystemExit(f"Matching runtime is required for full and split packages: {runtime_path}")
+    runtime_metadata = json.dumps({
+        "python": "3.11", "platform": platform,
+        "sha256": hashlib.sha256(runtime_path.read_bytes()).hexdigest(),
+    }, sort_keys=True).encode("utf-8")
     missing = [str(path) for path in resources.values() if not path.is_file()]
     if missing:
         raise SystemExit(f"MoviePilot runtime resources are missing: {', '.join(missing)}")
@@ -194,7 +203,7 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
             member.name = member.name.lstrip("./")
             if not member.name:
                 continue
-            if member.name in resources or member.name.startswith("app/helper/sites."):
+            if member.name in resources or member.name == "runtime/expected.json" or member.name.startswith("app/helper/sites."):
                 continue
             normalize(member)
             if member.isfile():
@@ -215,6 +224,10 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
         target.add(FNOS / "ui", arcname="ui", recursive=True, filter=normalize)
         for name, path in resources.items():
             target.add(path, arcname=name, recursive=False, filter=normalize)
+        info = tarfile.TarInfo("runtime/expected.json")
+        info.size = len(runtime_metadata)
+        info.mode = 0o644
+        target.addfile(info, io.BytesIO(runtime_metadata))
     return output
 
 
@@ -224,6 +237,16 @@ def build(version: str, platform: str, include_runtime: bool, output_name: str |
     source_app_tgz = ROOT / "app.tgz"
     if not source_app_tgz.is_file():
         raise SystemExit("app.tgz is missing; run scripts/apps/moviepilot/build.sh first")
+    with tarfile.open(source_app_tgz, "r:gz") as source:
+        member = next((m for m in source if m.name.removeprefix("./") == "version.py"), None)
+        if member is None:
+            raise SystemExit("app.tgz does not declare its upstream version")
+        declarations = ast.parse(source.extractfile(member).read().decode("utf-8"))
+        source_version = next((ast.literal_eval(node.value).removeprefix("v")
+                               for node in declarations.body if isinstance(node, ast.Assign)
+                               and any(isinstance(target, ast.Name) and target.id == "APP_VERSION" for target in node.targets)), None)
+        if source_version != version.rsplit("-", 1)[0]:
+            raise SystemExit(f"FPK version {version} does not match app.tgz upstream {source_version}")
     app_tgz = prepare_app_tgz(source_app_tgz, include_runtime, platform)
     try:
         out_dir = ROOT / "dist"
