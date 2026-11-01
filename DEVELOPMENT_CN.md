@@ -183,7 +183,7 @@ moviepilot/runtime
 在 Linux 或 WSL2 中执行：
 
 ```bash
-VERSION=2.14.6 bash scripts/apps/moviepilot/build.sh
+VERSION=2.15.6 bash scripts/apps/moviepilot/build.sh
 ```
 
 不设置 `VERSION` 时，脚本通过 `get-latest-version.sh` 获取最新版本。该流程会：
@@ -238,15 +238,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-39 --platform x86
-python build-fpk.py --version 2.14.6-39 --platform arm
+python build-fpk.py --version 2.15.6-39 --platform x86
+python build-fpk.py --version 2.15.6-39 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.14.6-39 --platform x86 --without-runtime --output-name moviepilot_2.14.6-39_x86_installer.fpk
-python build-fpk.py --version 2.14.6-39 --platform arm --without-runtime --output-name moviepilot_2.14.6-39_arm_installer.fpk
+python build-fpk.py --version 2.15.6-39 --platform x86 --without-runtime --output-name moviepilot_2.15.6-39_x86_installer.fpk
+python build-fpk.py --version 2.15.6-39 --platform arm --without-runtime --output-name moviepilot_2.15.6-39_arm_installer.fpk
 ```
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
@@ -282,7 +282,7 @@ python scripts/test-runtime.py # 运行时替换测试需要 Linux / Bash
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.14.6-39_x86.fpk
+tar -tzf dist/moviepilot_2.15.6-39_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
