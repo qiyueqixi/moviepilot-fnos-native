@@ -115,7 +115,7 @@ jobs:
           name: fpk-${{ matrix.platform }}
           path: dist/*
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
 
   release:
     needs: [check, build]
@@ -154,4 +154,5 @@ jobs:
               --title "MoviePilot fnOS $FPK_VERSION" --notes-file dist/RELEASE_NOTES.md
           fi
           gh release upload "$RELEASE_TAG" dist/* --clobber
-          printf '已生成 [FPK Release 草稿](https://github.com/%s/releases/tag/%s)，下载对应架构的完整包，在飞牛应用中心手动升级。\n' "$GH_REPO" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
+          release_url="$(gh release view "$RELEASE_TAG" --json url --jq .url)"
+          printf '已生成 [FPK Release 草稿](%s)，下载对应架构的完整包，在飞牛应用中心手动升级。\n' "$release_url" >> "$GITHUB_STEP_SUMMARY"
