@@ -112,37 +112,6 @@ def patch_no_auth_level(name: str, data: bytes) -> bytes:
     return text.encode("utf-8")
 
 
-def patch_bangumi_proxy(data: bytes) -> bytes:
-    """Refresh Bangumi request helpers so they always use the current app proxy."""
-    text = data.decode("utf-8").replace("\r\n", "\n")
-    sync_needle = "        resp = self._req.get_res(url=req_url, params=params)"
-    sync_replacement = (
-        "        self._req = RequestUtils(\n"
-        "            ua=settings.NORMAL_USER_AGENT,\n"
-        "            proxies=settings.PROXY,\n"
-        "            session=self._session,\n"
-        "        )\n"
-        "        resp = self._req.get_res(url=req_url, params=params)"
-    )
-    async_needle = "        resp = await self._async_req.get_res(url=req_url, params=params)"
-    async_replacement = (
-        "        self._async_req = AsyncRequestUtils(\n"
-        "            ua=settings.NORMAL_USER_AGENT,\n"
-        "            proxies=settings.PROXY,\n"
-        "        )\n"
-        "        resp = await self._async_req.get_res(url=req_url, params=params)"
-    )
-    if sync_replacement not in text:
-        if sync_needle not in text:
-            raise SystemExit("MoviePilot Bangumi sync proxy patch target was not found")
-        text = text.replace(sync_needle, sync_replacement, 1)
-    if async_replacement not in text:
-        if async_needle not in text:
-            raise SystemExit("MoviePilot Bangumi async proxy patch target was not found")
-        text = text.replace(async_needle, async_replacement, 1)
-    return text.encode("utf-8")
-
-
 def patch_frontend_index(data: bytes) -> bytes:
     """Repair known syntax damage in the MoviePilot frontend release."""
     text = data.decode("utf-8").replace("\r\n", "\n")
@@ -213,8 +182,6 @@ def prepare_app_tgz(source: Path, include_runtime: bool, platform: str) -> Path:
                     data = patch_no_auth_level(member.name, data)
                 elif member.name == "app/api/endpoints/login.py":
                     data = patch_no_auth_level(member.name, data)
-                elif member.name == "app/modules/bangumi/bangumi.py":
-                    data = patch_bangumi_proxy(data)
                 elif member.name == "public/index.html":
                     data = patch_frontend_index(data)
                 member.size = len(data)

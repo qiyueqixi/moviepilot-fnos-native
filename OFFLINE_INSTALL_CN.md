@@ -4,13 +4,13 @@
 
 ## 文件说明
 
-- `moviepilot_2.15.6-39_x86.fpk`：完整离线安装包。运行环境已经内置，推荐大多数用户使用。
-- `moviepilot_2.15.6-39_x86_installer.fpk`：拆分版安装包，不含 Python 运行环境。
+- `moviepilot_2.15.6-40_x86.fpk`：完整离线安装包。运行环境已经内置，推荐大多数用户使用。
+- `moviepilot_2.15.6-40_x86_installer.fpk`：拆分版安装包，不含 Python 运行环境。
 - `moviepilot-runtime-x86-python311.tgz`：拆分版所需的数据包。
 
 ## 完整离线包安装
 
-1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.15.6-39_x86.fpk`。
+1. 在 fnOS 应用中心选择手动安装，上传 `moviepilot_2.15.6-40_x86.fpk`。
 2. 按安装向导完成安装，然后启动 MoviePilot。
 3. 从桌面打开 MoviePilot。应用已启用免登录模式，无需设置或输入登录密码。
 
@@ -22,7 +22,7 @@
 
 拆分包适合希望减少 FPK 安装包体积的用户。必须先上传运行时数据包，再启动应用。
 
-1. 在 fnOS 应用中心手动安装 `moviepilot_2.15.6-39_x86_installer.fpk`。
+1. 在 fnOS 应用中心手动安装 `moviepilot_2.15.6-40_x86_installer.fpk`。
 2. 安装完成后先不要启动 MoviePilot。
 3. 打开 fnOS 的“应用文件”，进入 `moviepilot`，再进入 `runtime` 目录。
 4. 将 `moviepilot-runtime-x86-python311.tgz` 上传到这个目录，文件名不要修改。
@@ -45,13 +45,9 @@
 
 ## 代理
 
-安装向导提供 `MoviePilot 应用代理`。需要时填写完整地址，例如 `http://192.168.1.4:7899`。
+代理由 MoviePilot 自身设置和上级网络规则管理，FPK 不额外设置代理地址，也不改写模块的代理选择逻辑。需要调整时，在 MoviePilot 内修改原生代理设置。
 
-该设置写入 MoviePilot 的 `PROXY_HOST`，供 GitHub 版本检查、插件、元数据和其他明确支持代理的模块使用。应用不会设置全进程 `HTTP_PROXY/HTTPS_PROXY/ALL_PROXY`，因此 qBittorrent、Transmission 等未主动使用应用代理的模块保持直连。
-
-旧版本保存的全进程代理在升级时会自动迁移为 MoviePilot 应用代理，并删除旧进程代理文件。
-
-在应用配置页中，代理输入框留空表示保持现有配置；需要删除代理时，选择对应的“清除”选项。
+升级会保留已有 MoviePilot 配置。如果以前在 FPK 向导中填过代理，该值已写入 MP 的配置，需要时可在 MP 内自行调整或清除。
 
 ## 自定义启动背景
 

@@ -94,10 +94,10 @@ fnOS 调用 `fnos/cmd/*_init` 和 `*_callback`，这些入口统一加载 `insta
 | 阶段 | 主要行为 |
 | --- | --- |
 | 安装前 | 校验环境，初始化应用变量 |
-| 安装后 | 保存应用代理，迁移并清理旧进程代理，解压内置运行时，修正目录所有者 |
+| 安装后 | 解压内置运行时，修正目录所有者 |
 | 启动 | 解析应用文件目录，安装拆分运行时，启动 Python 和 Node |
 | 停止 | 先正常终止进程，超时后强制终止，删除 PID 和 Socket |
-| 配置后 | 更新代理设置 |
+| 配置后 | 保留 MoviePilot 自身设置 |
 | 升级前 | 停止服务并保留数据 |
 | 升级后 | 修正所有权，恢复运行时并重新初始化 |
 | 卸载后 | 根据向导选择保留数据或删除所有应用数据 |
@@ -126,15 +126,9 @@ moviepilot/runtime
 /vol1/@appshare/moviepilot/runtime
 ```
 
-应用私有运行数据位于 `${TRIM_PKGVAR}`，常见路径为 `/vol1/@appdata/moviepilot`。其中包括虚拟环境、PID 和授权路径快照。MoviePilot 应用代理写入共享配置目录的 `app.env`。
+应用私有运行数据位于 `${TRIM_PKGVAR}`，常见路径为 `/vol1/@appdata/moviepilot`。其中包括虚拟环境、PID 和授权路径快照。代理统一使用 MoviePilot 上游默认逻辑，由 MP 自身配置及上级网络规则决定。FPK 向导不提供代理项，生命周期不写入、迁移或清空 `PROXY_HOST`，启动脚本不设置或清除代理环境变量。
 
-安装向导的 `wizard_proxy` 只更新 `PROXY_HOST`。MoviePilot 的 GitHub 检查、更新、插件、元数据以及带代理开关的模块会显式读取 `settings.PROXY`；下载器等没有主动使用该配置的模块不会经过代理。
-
-启动脚本不得设置全进程 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY`，并会在启动前清除从父进程继承的同名变量。发现某个具体模块需要代理时，应让该模块显式使用 `settings.PROXY`，不能用全进程代理扩大作用范围。
-
-升级时如果发现旧版 `.proxy`，安装脚本会在服务启动前把其值迁移到 `PROXY_HOST` 并删除旧文件；历史 `.process-proxy` 也会被清理。
-
-配置向导不能安全回显包含凭据的代理 URL，因此空输入表示保留现有值。`wizard_clear_app_proxy` 提供显式清除操作，不能把空输入直接解释为删除。
+不要增加 Bangumi 等模块的请求器代理补丁。构建会记录上游配置、HTTP 请求工具和 Bangumi 源码的 SHA-256，最终校验其内容保持上游原样。历史向导写入的配置属于现有 MP 配置，升级保留，用户在 MP 内调整。
 
 媒体库、下载目录等额外目录由用户在 fnOS 应用设置中授权。fnOS 通过 `TRIM_DATA_ACCESSIBLE_PATHS` 注入授权列表；启动脚本将其写入 `.accessible_paths`，`fnos/resources/local.py` 在列目录及复制、移动、删除、链接等每个操作前再次检查路径是否位于授权根目录内。
 
@@ -238,15 +232,15 @@ python scripts/build-arm-runtime.py `
 完整离线包：
 
 ```powershell
-python build-fpk.py --version 2.15.6-39 --platform x86
-python build-fpk.py --version 2.15.6-39 --platform arm
+python build-fpk.py --version 2.15.6-40 --platform x86
+python build-fpk.py --version 2.15.6-40 --platform arm
 ```
 
 拆分安装包：
 
 ```powershell
-python build-fpk.py --version 2.15.6-39 --platform x86 --without-runtime --output-name moviepilot_2.15.6-39_x86_installer.fpk
-python build-fpk.py --version 2.15.6-39 --platform arm --without-runtime --output-name moviepilot_2.15.6-39_arm_installer.fpk
+python build-fpk.py --version 2.15.6-40 --platform x86 --without-runtime --output-name moviepilot_2.15.6-40_x86_installer.fpk
+python build-fpk.py --version 2.15.6-40 --platform arm --without-runtime --output-name moviepilot_2.15.6-40_arm_installer.fpk
 ```
 
 同一批源码生成的完整包和拆分安装包必须使用相同版本号；是否内置运行时只通过 `_installer` 文件名和包内容区分，不能为拆分包单独递增版本。产物写入 `dist/`。`build-fpk.py` 会：
@@ -282,7 +276,7 @@ python scripts/test-runtime.py # 运行时替换测试需要 Linux / Bash
 检查 FPK 内容：
 
 ```powershell
-tar -tzf dist/moviepilot_2.15.6-39_x86.fpk
+tar -tzf dist/moviepilot_2.15.6-40_x86.fpk
 ```
 
 至少应包含 `manifest`、`app.tgz`、`cmd/`、`config/`、`wizard/`、`ui/`、图标和许可文件。完整包的内层 `app.tgz` 还应包含 `runtime/venv.tgz`。
@@ -307,7 +301,7 @@ file fnos/resources/node-linux-arm64
 - 配置、日志、导出和运行时目录出现在“应用文件”。
 - 未授权系统目录不会出现在 MoviePilot 文件管理器，也不能通过手工路径访问。
 - fnOS 新增授权目录后，重启应用即可访问。
-- 代理安装和配置修改生效。
+- 安装、升级和配置不会改写 MP 代理设置；请求行为沿用上游默认逻辑。
 - 保留数据升级后配置仍在。
 - 卸载选择“保留数据”后可恢复。
 - 卸载选择“删除全部应用数据”后不残留 MoviePilot 应用目录。
@@ -350,7 +344,7 @@ curl -I http://127.0.0.1:3001/api/v1/system/global?token=moviepilot
 - 页面资源 404：检查统一网关前缀、`<base>` 注入和 `/fnos-assets` 路径转换。
 - 应用文件为空：检查 `fnos/config/resource` 是否打入 FPK，以及 fnOS 是否注入 `TRIM_DATA_SHARE_PATHS`。
 - 能看到未授权目录：检查 `.accessible_paths` 和 `local.py` 是否被正确打入 `app.tgz`。
-- 局域网下载器连接超时：检查服务进程是否意外继承了宿主环境的 `HTTP_PROXY/HTTPS_PROXY/ALL_PROXY`。FPK 自身只写入 `PROXY_HOST`，不会设置这些变量。
+- 局域网下载器连接超时：检查 MP 自身代理设置及上级代理规则。FPK 不改写代理地址或代理环境变量。
 
 ## 14. 自定义启动背景
 
@@ -409,19 +403,11 @@ Release 至少应包含：
 
 以下问题均在实际 fnOS 测试机或发布流程中出现过。升级上游、调整代理或重新打包时应优先检查这些位置。
 
-### 17.1 应用代理不是全进程代理
+### 17.1 代理沿用上游默认行为
 
-`PROXY_HOST` 会生成 MoviePilot 的 `settings.PROXY`，但只有显式传入该配置的请求才会走代理。不要为了解决 GitHub 或元数据访问而给整个 Python 进程设置 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY`，否则局域网下载器、媒体服务器和其他应直连的模块也会被送进代理。
+FPK 不增加独立代理配置层，也不修改 `settings.PROXY`、网络请求工具或 Bangumi 的代理选择逻辑。需要代理的请求由 MP 原生设置和上级网络规则决定。
 
-另一个容易忽略的问题是请求对象的代理快照。Bangumi 模块曾在初始化时创建并长期保存 `RequestUtils` 和 `AsyncRequestUtils`；安装后再写入代理时，同步模块测试可以成功，但详情页使用的旧异步对象仍会直连并在约 20 秒后超时。本项目在每次 Bangumi 请求前按当前 `settings.PROXY` 重建请求器。适配其他模块时也要检查请求对象是在模块启动时创建，还是在实际请求时读取配置。
-
-不能只用模块测试判断代理正常，还应覆盖真实接口：
-
-```bash
-curl -o /dev/null -w '%{http_code} %{time_total}\n' http://127.0.0.1:3001/api/v1/bangumi/326
-curl -o /dev/null -w '%{http_code} %{time_total}\n' 'http://127.0.0.1:3001/api/v1/bangumi/credits/326?page=1&count=20'
-curl -o /dev/null -w '%{http_code} %{time_total}\n' 'http://127.0.0.1:3001/api/v1/bangumi/recommend/326?page=1&count=20'
-```
+升级保留现有 `app.env`，不自动迁移历史 `.proxy`，也不清空已有设置。历史向导写入的 `PROXY_HOST` 可在 MP 内调整。检查实际页面请求时，应同时核对 MP 原生配置和上级代理规则。
 
 ### 17.2 首次资源更新可能让后端主动退出
 
@@ -471,8 +457,8 @@ ps -ef | grep 'tail -n 0 -F' | grep moviepilot | grep -v grep
 每次构建至少验证：
 
 - 外层 `manifest` 的版本和平台正确。
-- `cmd/main` 包含当前启动、日志和代理逻辑。
-- 内层 Bangumi 文件包含动态代理补丁。
+- `cmd/main` 包含当前启动和日志逻辑，不改写代理环境变量。
+- 内层 Bangumi、HTTP 工具和配置源码与上游摘要一致。
 - 内层 `public/service.js` 包含当前启动页实现。
 - 完整包包含 `runtime/venv.tgz`，拆分包不包含。
 - x86 与 ARM 的 `sites`、Node 和运行时 ELF 架构匹配。

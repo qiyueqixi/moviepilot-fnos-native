@@ -16,6 +16,11 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
+PROXY_SOURCE_FILES = (
+    "app/core/config.py",
+    "app/utils/http.py",
+    "app/modules/bangumi/bangumi.py",
+)
 
 
 def version_tuple(tag: str) -> tuple[int, ...]:
@@ -140,7 +145,9 @@ def prepare(args, config):
     if len(assets) != 1:
         raise ValueError(f"Missing frontend dist.zip for v{frontend}")
     metadata = {"version": backend, "frontend": frontend, "source_sha256": hashlib.sha256(data).hexdigest(),
-                "frontend_url": assets[0]["browser_download_url"], "python": config["python"]}
+                "frontend_url": assets[0]["browser_download_url"], "python": config["python"],
+                "proxy_defaults_sha256": {name: hashlib.sha256((destination / name).read_bytes()).hexdigest()
+                                          for name in PROXY_SOURCE_FILES}}
     (destination / "native-upstream.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(metadata, indent=2))
 
@@ -214,6 +221,11 @@ def verify_package(path: Path, expected_version: str) -> None:
                     and node.targets[0].id == "APP_VERSION"}
         if declared.get("APP_VERSION", "").removeprefix("v") != expected_version.rsplit("-", 1)[0]:
             raise ValueError(f"FPK contains a different upstream version: {path.name}")
+        provenance = json.loads(inner.extractfile(names["native-upstream.json"]).read())
+        for name in PROXY_SOURCE_FILES:
+            digest = hashlib.sha256(inner.extractfile(names[name]).read()).hexdigest()
+            if digest != provenance["proxy_defaults_sha256"][name]:
+                raise ValueError(f"Upstream proxy behavior was modified: {name}")
         for name in ["public/no-auth.js", "public/service.js", "app/modules/filemanager/storages/local.py"]:
             expected = ROOT / "fnos/resources" / Path(name).name
             if inner.extractfile(names[name]).read() != expected.read_bytes():

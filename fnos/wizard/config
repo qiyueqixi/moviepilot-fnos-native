@@ -2,26 +2,7 @@
   {
     "stepTitle": "服务设置",
     "items": [
-      { "type": "tips", "helpText": "媒体库和下载目录由本页的授权目录设置管理。应用代理只用于 MoviePilot 明确支持代理的模块，输入框留空时保持现有配置。" },
-      {
-        "type": "text",
-        "field": "wizard_proxy",
-        "label": "MoviePilot 应用代理（可选）",
-        "placeholder": "http://代理地址:端口",
-        "rules": [
-          { "pattern": "^(http|https)://.+$", "message": "代理地址必须以 http:// 或 https:// 开头" }
-        ]
-      },
-      {
-        "type": "radio",
-        "field": "wizard_clear_app_proxy",
-        "label": "清除现有 MoviePilot 应用代理",
-        "initValue": "false",
-        "options": [
-          { "label": "保留", "value": "false" },
-          { "label": "清除", "value": "true" }
-        ]
-      }
+      { "type": "tips", "helpText": "媒体库和下载目录由本页的授权目录设置管理。网络代理沿用 MoviePilot 自身设置，可在 MoviePilot 内管理。" }
     ]
   }
 ]

@@ -58,19 +58,3 @@ if legacy_replacement in text:
 elif replacement not in text:
     text = replace_checked(text, needle, replacement)
 login.write_text(text, encoding="utf-8")
-
-bangumi = root / "app/modules/bangumi/bangumi.py"
-text = bangumi.read_text(encoding="utf-8")
-sync_needle = "        resp = self._req.get_res(url=req_url, params=params)"
-sync_replacement = "        self._req = RequestUtils(\n            ua=settings.NORMAL_USER_AGENT,\n            proxies=settings.PROXY,\n            session=self._session,\n        )\n        resp = self._req.get_res(url=req_url, params=params)"
-if sync_replacement not in text:
-    if sync_needle not in text:
-        raise RuntimeError("MoviePilot Bangumi sync proxy patch target was not found")
-    text = text.replace(sync_needle, sync_replacement, 1)
-async_needle = "        resp = await self._async_req.get_res(url=req_url, params=params)"
-async_replacement = "        self._async_req = AsyncRequestUtils(\n            ua=settings.NORMAL_USER_AGENT,\n            proxies=settings.PROXY,\n        )\n        resp = await self._async_req.get_res(url=req_url, params=params)"
-if async_replacement not in text:
-    if async_needle not in text:
-        raise RuntimeError("MoviePilot Bangumi async proxy patch target was not found")
-    text = text.replace(async_needle, async_replacement, 1)
-bangumi.write_text(text, encoding="utf-8")

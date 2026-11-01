@@ -67,6 +67,28 @@ class RuntimeTests(unittest.TestCase):
             self.assertNotEqual(self.run_helper('runtime_install_archive "$TRIM_APPDEST/runtime/venv.tgz"', env).returncode, 0)
             self.assertEqual((var / 'venv/pyvenv.cfg').read_text(), 'old')
 
+    def test_lifecycle_preserves_moviepilot_proxy_settings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            app, var, archive, digest, env = self.setup_runtime(temp)
+            archive.unlink()  # No bundled runtime required for this configuration test.
+            config = Path(temp) / 'config'
+            config.mkdir()
+            original = b"PROXY_HOST='http://mp-setting:8080'\nOTHER=value\n"
+            (config / 'app.env').write_bytes(original)
+            (var / '.proxy').write_text('http://legacy-setting:8080')
+            env.update(TRIM_DATA_SHARE_PATHS=str(config), TRIM_UID='0', TRIM_GID='0',
+                       wizard_proxy='http://wizard-setting:8080', wizard_clear_app_proxy='true',
+                       HTTPS_PROXY='http://inherited-setting:8080')
+            command = ('source "$1"; prepare_system_log() { :; }; chown() { :; }; '
+                       'for hook in service_postinst service_postconfig service_postupgrade; do "$hook"; done; '
+                       'printf "%s" "$HTTPS_PROXY"')
+            result = subprocess.run(['bash', '-c', command, '--', str(HELPER.with_name('service-setup'))],
+                                    env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((config / 'app.env').read_bytes(), original)
+            self.assertEqual((var / '.proxy').read_text(), 'http://legacy-setting:8080')
+            self.assertEqual(result.stdout, env['HTTPS_PROXY'])
+
 
 if __name__ == '__main__':
     unittest.main()

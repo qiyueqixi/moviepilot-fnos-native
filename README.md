@@ -8,7 +8,7 @@
 - 从飞牛桌面以内嵌页面打开，并启用免登录模式。
 - 免登录不跳过 MoviePilot 站点认证；未认证时可从右上角选择认证站点并填写参数。
 - 使用 fnOS 内置 Python 3.11，完整包内置依赖，安装时不联网下载。
-- 安装向导可配置 MoviePilot 模块级应用代理，并支持配置、日志、导出和运行时目录。
+- 代理沿用 MoviePilot 上游默认逻辑；提供配置、日志、导出和运行时目录。
 - 文件管理器只显示 fnOS 明确授权给应用的目录。
 - 启动检查页显示实时初始化进度和错误摘要，并支持自定义背景。
 - 卸载时选择“删除全部数据”会清理 MoviePilot 对应的应用目录。
@@ -29,8 +29,8 @@
 准备 MoviePilot 的 `app.tgz`、对应架构的 `sites` 官方资源、Node 二进制和 Python 3.11 运行时后执行：
 
 ```powershell
-python build-fpk.py --version 2.15.6-39 --platform x86
-python build-fpk.py --version 2.15.6-39 --platform arm
+python build-fpk.py --version 2.15.6-40 --platform x86
+python build-fpk.py --version 2.15.6-40 --platform arm
 ```
 
 ARM Python 运行时可由已经验证的 x86 运行时和同版本 ARM64 wheels 生成：

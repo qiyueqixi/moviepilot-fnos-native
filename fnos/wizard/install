@@ -2,9 +2,7 @@
   {
     "stepTitle": "安装设置",
     "items": [
-      { "type": "tips", "helpText": "MoviePilot 已配置为直接访问，无需登录。媒体库和下载目录请在应用设置的授权目录中选择。完整离线包无需下载 Python 依赖。" },
-      { "type": "text", "field": "wizard_proxy", "label": "MoviePilot 应用代理（可选）", "placeholder": "http://代理地址:端口", "rules": [ { "pattern": "^(http|https)://.+$", "message": "代理地址必须以 http:// 或 https:// 开头" } ] },
-      { "type": "tips", "helpText": "该代理写入 MoviePilot 的 PROXY_HOST，只用于版本检查、插件、元数据及其他明确支持代理的模块，不会代理下载器等全部进程请求。" }
+      { "type": "tips", "helpText": "MoviePilot 已配置为直接访问，无需登录。媒体库和下载目录请在应用设置的授权目录中选择。完整离线包无需下载 Python 依赖。网络代理沿用 MoviePilot 自身设置。" }
     ]
   }
 ]
