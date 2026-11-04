@@ -1,5 +1,7 @@
 # MoviePilot 飞牛 fnOS 原生 FPK
 
+> **本项目已停止维护。后续维护转至 V3 版本：[MoviePilot V3 飞牛 fnOS 原生 FPK](https://github.com/qiyueqixi/moviepilot-v3-fnos-native)。**
+
 本项目将 MoviePilot 改造成飞牛 fnOS 原生应用，不使用 Docker。目前提供 x86_64 和 ARM64 两种架构。
 
 ## 功能
